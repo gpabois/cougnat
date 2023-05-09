@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+option go_package = "github.com/cougnat/reporting/pb";
+
+service ReportService {
+  rpc Report(ReportRequest) returns (ReportResponse) {}
+}
+
+message Point {
+  float p0 = 1;
+  float p1 = 2;
+}
+
+message ReportRequest {
+  string nature  = 1;
+  uint32 rate     = 2;
+  Point  location = 3;
+}
+
+message ReportResponse {
+  string report_id = 1;
+}
