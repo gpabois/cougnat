@@ -3,25 +3,32 @@ package mongo
 import (
 	"context"
 
+	"github.com/gpabois/cougnat/core/mongo"
+	"github.com/gpabois/cougnat/core/option"
 	"github.com/gpabois/cougnat/core/result"
 	"github.com/gpabois/cougnat/reporting/models"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type ReportRepository struct {
-	coll *mongo.Collection
+	coll mongo.Collection[models.Report]
 }
 
 func (repo ReportRepository) Create(report models.Report) result.Result[models.ReportID] {
-	res, err := repo.coll.InsertOne(context.TODO(), report)
+	return result.Map(
+		repo.coll.InsertOne(context.TODO(), report),
+		func(obj primitive.ObjectID) string {
+			return obj.String()
+		},
+	)
+}
 
-	// The operations failed
-	if err != nil {
-		return result.Failed[models.ReportID](err)
+func (repo ReportRepository) GetById(id models.ReportID) result.Result[option.Option[models.Report]] {
+	objId, err := primitive.ObjectIDFromHex(id)
+	if err == nil {
+		return result.Failed[option.Option[models.Report]](err)
 	}
 
-	objID := res.InsertedID.(primitive.ObjectID).String()
-
-	return result.Success(objID)
+	return repo.coll.FindOne(context.TODO(), bson.D{{"_id", objId}})
 }

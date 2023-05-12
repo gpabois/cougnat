@@ -3,34 +3,33 @@ package mongo
 import (
 	"context"
 
-	"github.com/gpabois/cougnat/core/iter"
 	"github.com/gpabois/cougnat/core/option"
+	"github.com/gpabois/cougnat/core/result"
+	"github.com/gpabois/cougnat/core/serde"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// Wrap a mongo cursor into an iterator
-type CursorIterator struct {
-	cursor mongo.Cursor
+// Cursor over model-based elements
+type Cursor[T any] struct {
+	ctx   context.Context
+	inner *mongo.Cursor
+}
+
+func (it Cursor[T]) Next() option.Option[result.Result[T]] {
+	if it.inner.Next(it.ctx) {
+		rawEls, err := it.inner.Current.Elements()
+		if err != nil {
+			return option.Some(result.Failed[T](err))
+		}
+
+		rawEl := rawEls[0]
+		return option.Some(serde.UnMarshalBson[T](rawEl))
+	} else {
+		return option.None[result.Result[T]]()
+	}
 }
 
 // Create a cursor iterator
-func IterCursor(cursor mongo.Cursor) CursorIterator {
-	return CursorIterator{cursor}
-}
-
-func (it CursorIterator) Next() option.Option[mongo.Cursor] {
-	if !it.cursor.Next(context.TODO()) {
-		return option.None[mongo.Cursor]()
-	}
-
-	return option.Some(it.cursor)
-}
-
-// Decode the cursor elements
-func Decode[T any](it CursorIterator) iter.Iterator[T] {
-	return iter.Map[mongo.Cursor](it, func(cursor mongo.Cursor) T {
-		var val T
-		cursor.Decode(&val)
-		return val
-	})
+func IterCursor[T any](ctx context.Context, cursor *mongo.Cursor) Cursor[T] {
+	return Cursor[T]{ctx, cursor}
 }

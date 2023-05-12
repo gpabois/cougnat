@@ -2,6 +2,7 @@ package serde
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 
 	"github.com/gpabois/cougnat/core/option"
@@ -56,13 +57,13 @@ func Normalise[T any](value T) any {
 		fieldVal := field.Interface()
 
 		if option.IsOption(fieldVal) {
-			optVal := fieldVal.(option.ReflectOption).ValueOf()
+			optVal := fieldVal.(option.IOption)
 			// Don't set nil value
-			if optVal.Kind() == reflect.Ptr && optVal.IsNil() {
+			if optVal.IsNone() {
 				continue
 			}
 
-			norm[fieldName] = Normalise(optVal.Interface())
+			norm[fieldName] = Normalise(optVal.Get())
 		} else {
 			norm[fieldName] = Normalise(fieldVal)
 		}
@@ -75,17 +76,28 @@ func denormaliseByReflectType(typ reflect.Type, val any) result.Result[any] {
 
 	// Primary type, easy !
 	if slices.Contains(primaryTypes, typ.Kind()) {
-		return result.Success(val)
+		switch typ.Kind() {
+		case reflect.Int64:
+		case reflect.Int32:
+		case reflect.Int16:
+		case reflect.Int8:
+		case reflect.Int:
+			integer := reflect.ValueOf(val).Int()
+			return result.Success[any](int(integer))
+		default:
+			return result.Success(val)
+		}
+
 	}
 
 	if typ.Kind() != reflect.Struct {
-		return result.Failed[any](errors.New("type cannot be denormalised"))
+		return result.Failed[any](errors.New(fmt.Sprintf("type %v cannot be denormalised", typ.Kind())))
 	}
 
 	norm, ok := val.(NormalisedStruct)
 
 	if !ok {
-		return result.Failed[any](errors.New("expecting a normalised struct"))
+		return result.Failed[any](errors.New(fmt.Sprintf("expecting a normalised struct got: %v", val)))
 	}
 
 	// Instantiate a struct
@@ -99,8 +111,21 @@ func denormaliseByReflectType(typ reflect.Type, val any) result.Result[any] {
 		normValue, ok := norm[fieldName]
 
 		// Take care of optional values
-		if option.IsOption(field.Interface()) {
-			field.Interface().(option.ReflectOption).Set(normValue)
+		if field.CanAddr() && option.IsMutableOption(field.Addr().Interface()) {
+			res := denormaliseByReflectType(field.Interface().(option.IOption).TypeOf(), normValue)
+
+			if res.HasFailed() {
+				return result.Failed[any](res.UnwrapError())
+			}
+
+			resSet := field.
+				Addr().
+				Interface().(option.IMutableOption).
+				TrySet(res.Expect())
+
+			if resSet.HasFailed() {
+				return result.Failed[any](res.UnwrapError())
+			}
 		} else { // Manage the rest
 			if !ok {
 				continue
@@ -126,10 +151,11 @@ func denormaliseByReflectType(typ reflect.Type, val any) result.Result[any] {
 }
 
 func DeNormalise[T any](val any) result.Result[T] {
-	res := denormaliseByReflectType(reflect.TypeOf((*T)(nil)).Elem(), val)
-	if res.IsSuccess() {
-		return result.Success(res.Expect().(T))
-	} else {
-		return result.Failed[T](res.UnwrapError())
-	}
+	typ := reflect.TypeOf((*T)(nil)).Elem()
+	return result.Map(
+		denormaliseByReflectType(typ, val),
+		func(val any) T {
+			return val.(T)
+		},
+	)
 }
