@@ -4,7 +4,7 @@ import "github.com/gpabois/cougnat/core/option"
 
 type ActorID struct {
 	nature string
-	id     string
+	id     option.Option[string]
 }
 
 func ActorID_TryFromAny(val any) option.Option[ActorID] {
@@ -21,10 +21,14 @@ func ActorID_TryFromAny(val any) option.Option[ActorID] {
 }
 
 func (id ActorID) IsBound() bool {
-	return id.id != ""
+	return id.id.IsSome()
 }
 
-func AnonymousID(id string) ActorID {
+func (id ActorID) IsUser() bool {
+	return id.nature == "user"
+}
+
+func AnonymousID(id option.Option[string]) ActorID {
 	return ActorID{
 		nature: "anonymous",
 		id:     id,
@@ -34,20 +38,20 @@ func AnonymousID(id string) ActorID {
 func UserID(id string) ActorID {
 	return ActorID{
 		nature: "user",
-		id:     id,
+		id:     option.Some(id),
 	}
 }
 
 func GroupID(id string) ActorID {
 	return ActorID{
 		nature: "group",
-		id:     id,
+		id:     option.Some(id),
 	}
 }
 
-func ServiceID(id string) ActorID {
+func OrganisationID(id string) ActorID {
 	return ActorID{
 		nature: "service",
-		id:     id,
+		id:     option.Some(id),
 	}
 }

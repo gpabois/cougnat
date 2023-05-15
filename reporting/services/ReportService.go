@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 
+	"github.com/gpabois/cougnat/auth/guards"
 	auth_models "github.com/gpabois/cougnat/auth/models"
 	auth_svcs "github.com/gpabois/cougnat/auth/services"
+	auth_utils "github.com/gpabois/cougnat/auth/utils"
 	"github.com/gpabois/cougnat/core/option"
 	"github.com/gpabois/cougnat/core/result"
 	ev "github.com/gpabois/cougnat/reporting/events"
@@ -26,69 +28,59 @@ type ImplReportService struct {
 	evrecv ev.ReportEventReceiver
 }
 
+// Report any annoyances.
 func (svc ImplReportService) Report(ctx context.Context, report models.Report) result.Result[models.Report] {
-	ownerID := auth_models.ActorID_TryFromAny(ctx.Value("CurrentActor.ID"))
+	ownerID := auth_utils.GetCurrentActorID(ctx)
 	report.Owner = ownerID
 
-	// Chain operations
-	res := result.FlatMap(
-		// Create The Report
-		result.FlatMap(
-			svc.repo.Create(report),
-			// Retrieve the report upon insertion
-			func(reportID string) result.Result[option.Option[models.Report]] { return svc.repo.GetById(reportID) },
-		),
-		option.IntoResultFunc[models.Report](errors.New("created report not found")),
-	)
+	return result.Into[models.Report](svc.repo.
+		// Create the report
+		Create(report).ToAny().
+		// Retrieve the new report from the repository
+		Chain(result.ChainFromAny(func(reportID string) result.Result[option.Option[models.Report]] {
+			return svc.repo.GetById(reportID)
+		})).
+		// Unwrap the option to get the report
+		Chain(result.ChainFromAny(func(opt option.Option[models.Report]) result.Result[models.Report] {
+			return opt.IntoResult(errors.New("created report not found"))
+		})).
+		// Send an event, and create access controls for the owner
+		Then(result.ThenFromAny(func(report models.Report) {
+			// Send an event
+			svc.evrecv.OnNewReport(report.ID.Expect())
 
-	// If the result is successful, we proceed to send an event, and add permissions to the actor
-	res.Then(func(report models.Report) {
-		// Send an event
-		svc.evrecv.OnNewReport(report.ID.Expect())
-
-		// Add permissions read and write to the actor if he's bound (has an ID)
-		if report.Owner.IsSome() && report.Owner.Expect().IsBound() {
-			svc.authz.AddPermissions(
-				report.Owner.Expect(),
-				[]string{"read", "write"},
-				report.ObjectID().Expect(),
-			)
-		}
-	})
-
-	return res
-}
-
-func GuardPermission() func(perm bool) result.Result[bool] {
-	return func(perm bool) result.Result[bool] {
-		if !perm {
-			return result.Failed[bool](errors.New("not permitted"))
-		}
-		return result.Success[bool](true)
-	}
-}
-
-func (svc ImplReportService) DeleteReport(ctx context.Context, reportID models.ReportID) result.Result[bool] {
-	return result.ChainMap(
-		// Execute the operation
-		func(b bool) result.Result[bool] {
-			return svc.repo.Delete(reportID)
-		},
-		// Check if the actor has the rights to delete the report
-		result.ChainMap(
-			func(currentActorID auth_models.ActorID) result.Result[bool] {
-				objectID := models.ReportObjectID(reportID)
-				return result.FlatMap(
-					svc.authz.HasPermission(currentActorID, "write", objectID),
-					GuardPermission(),
+			// Create an ACL for the Owner, if any
+			if report.Owner.IsSome() {
+				svc.authz.CreateAndAddRoleTo(
+					ownerID.Expect(),
+					"owner",
+					report.ObjectID().Expect(),
+					[]string{"read", "write"},
 				)
-			},
-			// Check if the actor is authenticated
-			auth_models.ActorID_TryFromAny(ctx.Value("CurrentActor.ID")).IntoResult(errors.New("not authenticated")),
-		),
-	).Then(func(_ bool) {
-		svc.evrecv.OnDeletedReport(reportID)
-	})
+			}
+		})))
+}
+
+// Delete a report, if the actor has the right to do so.
+func (svc ImplReportService) DeleteReport(ctx context.Context, reportID models.ReportID) result.Result[bool] {
+	return result.Into[bool](
+		// Check if authenticated
+		guards.IsAuthenticated(ctx).ToAny().
+			// Return an access control to be checked
+			Chain(result.ChainFromAny(func(currentActorID auth_models.ActorID) result.Result[auth_models.AccessControl] {
+				objectID := models.ReportObjectID(reportID)
+				return result.Success(auth_models.NewAccessControl(currentActorID, "write", objectID))
+			})).
+			// Check if has the permission
+			Chain(result.ChainFromAny(guards.CheckAccessControl(svc.authz))).
+			// Execute the deletion
+			Chain(result.ChainFromAny(func(_ bool) result.Result[bool] {
+				return svc.repo.Delete(reportID)
+			})).
+			// Send an event
+			Then(result.ThenFromAny(func(deleted bool) {
+				svc.evrecv.OnDeletedReport(reportID)
+			})))
 }
 
 // Provide the report service

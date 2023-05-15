@@ -1,6 +1,7 @@
 package result
 
 import (
+	"errors"
 	"reflect"
 )
 
@@ -16,6 +17,62 @@ type Result[T any] struct {
 	err   error
 }
 
+func Into[T any](result Result[any]) Result[T] {
+	if result.HasFailed() {
+		return Failed[T](result.err)
+	}
+
+	val, ok := result.inner.(T)
+
+	if !ok {
+		return Failed[T](errors.New("wrong type"))
+	}
+
+	return Success(val)
+}
+
+// Re-enter from Result[any]
+func ChainFromAny[T any, U any](inner func(T) Result[U]) func(outer any) Result[any] {
+	return func(outer any) Result[any] {
+		val, ok := outer.(T)
+
+		if !ok {
+			return Failed[any](errors.New("wrong type"))
+		}
+
+		return inner(val).ToAny()
+	}
+}
+
+// Re-enter from Result[any]
+func ThenFromAny[T any](inner func(T)) func(outer any) {
+	return func(outer any) {
+		val, ok := outer.(T)
+		if !ok {
+			panic(errors.New("wrong type"))
+		}
+
+		inner(val)
+	}
+}
+
+func (result Result[T]) ToAny() Result[any] {
+	return Result[any]{
+		inner: result.inner,
+		err:   result.err,
+	}
+}
+
+// Result chaining, take a successful result and create another result
+// For operations that only require a value transformation without any error, use Map()
+func (result Result[T]) Chain(mapper func(val T) Result[T]) Result[T] {
+	if result.HasFailed() {
+		return Failed[T](result.err)
+	} else {
+		return mapper(result.Expect())
+	}
+}
+
 func Flatten[T any](value Result[Result[T]]) Result[T] {
 	if value.HasFailed() {
 		return Failed[T](value.UnwrapError())
@@ -28,7 +85,7 @@ func FlatMap[T any, U any](val Result[T], mapper func(val T) Result[U]) Result[U
 	return Flatten(Map(val, mapper))
 }
 
-func ChainMap[T any, U any](mapper func(val T) Result[U], val Result[T]) Result[U] {
+func Chain[T any, U any](mapper func(val T) Result[U], val Result[T]) Result[U] {
 	return FlatMap(val, mapper)
 }
 

@@ -49,8 +49,8 @@ func Test_ReportService_Report_Success(t *testing.T) {
 
 		// Expected report
 		expectedReport := report
-		expectedReport.Owner = owner
-		expectedReport.ID = reportID
+		expectedReport.Owner = option.Some(owner)
+		expectedReport.ID = option.Some(reportID)
 
 		// Set the ActorID
 		ctx := context.WithValue(context.Background(), "CurrentActorID", owner)

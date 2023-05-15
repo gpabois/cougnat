@@ -31,7 +31,7 @@ func Swap[T any](opt Option[result.Result[T]]) result.Result[Option[T]] {
 		if res.HasFailed() {
 			return result.Failed[Option[T]](res.UnwrapError())
 		} else {
-			return result.Success[Option[T]](Some(res.Expect()))
+			return result.Success(Some(res.Expect()))
 		}
 	}
 }
@@ -42,9 +42,9 @@ func IntoResultFunc[T any](err error) func(Option[T]) result.Result[T] {
 
 func (opt Option[T]) IntoResult(err error) result.Result[T] {
 	if opt.IsNone() {
-		result.Failed[T](err)
+		return result.Failed[T](err)
 	} else {
-		result.Success[T](opt.value)
+		return result.Success(opt.value)
 	}
 }
 
