@@ -6,7 +6,7 @@ import (
 	"github.com/gpabois/cougnat/core/result"
 )
 
-// Core Authorization Service
+//go:generate mockery
 type AuthorizationService interface {
 	// Create a role and add it to the subject.
 	// Equivalent to CreateRole + AddRoleTo
@@ -36,6 +36,8 @@ func (authz ImplAuthorizationService) HasPermission(subject models.ActorID, perm
 	authz.roleRepo.ExistWithSPO(subject, perm, object)
 	// If it's an user, we can check if any group has the permission
 	if subject.IsUser() {
-
+		return authz.roleRepo.ExistWithSPO(subject, perm, object)
 	}
+
+	return result.Success(true)
 }
