@@ -1,4 +1,4 @@
-import { FeatureCollection, circle } from "@turf/turf";
+import { FeatureCollection, circle, point, featureCollection } from "@turf/turf";
 
 interface Organisation {
     id: string,
@@ -10,16 +10,15 @@ interface IOrganisationRepository {
     GetMine(): Promise<Array<Organisation>>
 }
 
-
 const ORGANISATION_FIXTURES: Array<Organisation> = [
     {
         id: "1",
         name: 'Acme',
-        nature: 'smell',
-        label: 'Odeur de bitume'
-    }, {
-        name: 'concasseur',
-        nature: 'noise',
-        label: 'Bruit de concasseur'
+        areas: featureCollection([
+            circle(
+                point([2.4904595576244026, 48.77932087129807]),
+                300
+            )
+        ])
     }
 ];
