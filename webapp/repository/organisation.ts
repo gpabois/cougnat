@@ -2,8 +2,7 @@ import { FeatureCollection, circle, point, featureCollection } from "@turf/turf"
 
 interface Organisation {
     id: string,
-    name: string,
-    areas: FeatureCollection
+    name: string
 }
 
 interface IOrganisationRepository {
@@ -12,13 +11,23 @@ interface IOrganisationRepository {
 
 const ORGANISATION_FIXTURES: Array<Organisation> = [
     {
-        id: "1",
-        name: 'Acme',
-        areas: featureCollection([
-            circle(
-                point([2.4904595576244026, 48.77932087129807]),
-                300
-            )
-        ])
+        id: "acme",
+        name: 'Acme'
     }
 ];
+
+class MockOrganisationRepository {
+    async GetMine(): Promise<Array<Organisation>> {
+        return Promise.resolve(ORGANISATION_FIXTURES)
+    }
+}
+
+function OrganisationRepositoryFactory(container: any): IOrganisationRepository {
+    return new MockOrganisationRepository()
+}
+
+export {
+    Organisation,
+    IOrganisationRepository,
+    OrganisationRepositoryFactory
+}
