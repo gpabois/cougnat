@@ -37,6 +37,7 @@
                             <i class="bi bi-megaphone-fill" v-if="!displayReportForm"></i>
                             <i class="bi bi-x-circle-fill" v-else></i>
                         </button>
+                        <NuxtLink class="btn btn-warning" :to="{name: 'monitoring'}"><i class="bi bi-binoculars text-white"></i></NuxtLink>
                         <button type="button" class="btn btn-light" @click="selectMyReports()">Archive</button>
                     </div>
                 </div>

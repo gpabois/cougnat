@@ -1,4 +1,4 @@
-import { BBox, Feature, Point, Polygon, bbox, bboxPolygon, point } from "@turf/turf";
+import { BBox, Feature, Point, Polygon, bbox, bboxPolygon, featureCollection, point } from "@turf/turf";
 import {LatLngBounds, polygon} from 'leaflet';
 
 export function latLngBoundsToFeature(refBbox: LatLngBounds | Ref<LatLngBounds>): Feature<Polygon> {
@@ -42,11 +42,12 @@ export namespace tiles {
     }
 
     export function * iterBounds(bounds: TileIndexBounds): Generator<TileIndex> {
-        for(var x = bounds.ne.x; x <= bounds.sw.x; x++) {
-            for(var y = bounds.ne.x; x <= bounds.sw.x; x++) {
-                yield {
+        for(let x = bounds.ne.x; x <= bounds.sw.x; x++) {
+            for(let y = bounds.ne.y; y >= bounds.sw.y; y--) {
+                const tile = {
                     x, y, zoom: bounds.zoom
                 }
+                yield tile
             }
         }
     }
@@ -58,9 +59,9 @@ export namespace tiles {
      * @param point In WSG 84
      */
     export function fromPoint(point: Point, zoom: number): TileIndex {
-        const n = 2^zoom;
-        const x = (point.coordinates[0] + 180.0) / 360.0 * n;
-        const y = (1.0 - Math.asinh(Math.tan(point.coordinates[1])) / Math.PI) / 2.0 *n;
+        const n = Math.pow(2, zoom);
+        const x = n * ((point.coordinates[0] + 180.0) / 360.0);
+        const y = (Math.floor((1-Math.log(Math.tan(point.coordinates[1]*Math.PI/180) + 1/Math.cos(point.coordinates[1]*Math.PI/180))/Math.PI)/2 * n ));
 
         return {
             x: Math.round(x), y: Math.round(y), zoom
@@ -68,9 +69,9 @@ export namespace tiles {
     }
 
     export function toPoint(tile: TileIndex): Point {
-        const n = 2^tile.zoom;
-        const long_deg = tile.x / n * 360.0 - 180.0
-        const lat_rad = Math.atan(Math.sinh(Math.PI * (1 - 2 * tile.y / n)))
+        const n = Math.pow(2, tile.zoom);
+        const long_deg = tile.x / n * 360.0 - 180.0;
+        const lat_rad = Math.atan(Math.sinh(Math.PI * (1 - 2 * tile.y / n)));
         const lat_deg = lat_rad * 180.0 / Math.PI;
 
         return point([long_deg, lat_deg]).geometry
@@ -81,15 +82,14 @@ export namespace tiles {
         const sw: Point = point([box[2], box[3]]).geometry;
         return {
             ne: fromPoint(ne, zoom),
-            sw: nextNE(fromPoint(ne, zoom)),
+            sw: nextNE(fromPoint(sw, zoom)),
             zoom
         }
     }
 
     export function toBox(tile: TileIndex): BBox {
-        const ne = toPoint(tile);
-        const sw = toPoint(nextSW(tile));
-
-        return bbox([ne, sw])    
+        const ne = point(toPoint(tile).coordinates);
+        const sw = point(toPoint(nextSW(tile)).coordinates);
+        return bbox(featureCollection([ne, sw]))    
     }
 }

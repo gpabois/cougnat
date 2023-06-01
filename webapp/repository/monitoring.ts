@@ -1,4 +1,4 @@
-import { FeatureCollection, circle, point, featureCollection, Feature, GeometryCollection, intersect, Polygon, bbox, bboxPolygon, Geometry } from "@turf/turf";
+import { FeatureCollection, circle, point, featureCollection, Feature, GeometryCollection, intersect, Polygon, bbox, bboxPolygon, Geometry, polygon, union } from "@turf/turf";
 import { tiles } from "~/geo/utils";
 
 interface PollutionTileProperties {
@@ -21,7 +21,7 @@ const MONITORING_PERIMETER_FIXTURES: Array<MonitoringPerimeter> = [
         areas: featureCollection([
             circle(
                 point([2.4904595576244026, 48.77932087129807]),
-                300
+                5
             )
         ])
     }
@@ -29,10 +29,10 @@ const MONITORING_PERIMETER_FIXTURES: Array<MonitoringPerimeter> = [
 
 interface IMonitoringRepository {
     GetPerimeter(organisation_id: string): Promise<MonitoringPerimeter>
-    GetCurrentPollution(organisation_id: string, bounds: Polygon, zoom: number): Promise<PollutionTileCollection>
+    GetCurrentPollution(organisation_id: string, bounds: Polygon, zoom: number): Promise<FeatureCollection>
 }
 
-class MockMonitoringRepository {
+class MockMonitoringRepository implements IMonitoringRepository {
     GetPerimeter(organisation_id: string): Promise<MonitoringPerimeter> {
         const perm = MONITORING_PERIMETER_FIXTURES.find((perim) => perim.organisation_id == organisation_id)
         if (perm) {
@@ -42,21 +42,35 @@ class MockMonitoringRepository {
         }
     }
 
-    async GetCurrentPollution(organisation_id: string, bounds: Polygon, zoom: number): Promise<PollutionTileCollection> {
+    async GetCurrentPollution(organisation_id: string, bounds: Polygon, zoom: number): Promise<FeatureCollection> {
+        zoom = Math.max(zoom, 16)
         const perimeter = await this.GetPerimeter(organisation_id);
-        const box = bbox(intersect(bounds, perimeter.areas.features[0].geometry as Polygon))
-        const tileBox = tiles.fromBox(box, zoom);
-        const pollutionTiles: Array<Feature<Geometry, PollutionTileProperties>> = [];
+        const perimeterPolygons = perimeter.areas.features.map((feature) => feature)
+        const roi = intersect(perimeterPolygons[0], bounds)
+                
+        if(roi == null)
+            return featureCollection([])
 
+        const box = bbox(roi)
+
+
+        const tileBox = tiles.fromBox(box, zoom);
+        const pollution_tiles: Array<Feature<Geometry, PollutionTileProperties>> = [];
+        
         for(const tileIndex of tiles.iterBounds(tileBox)) {
-            pollutionTiles.push(bboxPolygon<PollutionTileProperties>(tiles.toBox(tileIndex), {
+            const tileBBox = tiles.toBox(tileIndex)
+            const tilePolygon = bboxPolygon<PollutionTileProperties>(tileBBox, {
                 properties: {
                     weight: Math.random() * 300
                 }
-            }))
+            })
+
+            const croppedPolygon = intersect(perimeterPolygons[0], tilePolygon)
+            if(!croppedPolygon) continue;
+            pollution_tiles.push(croppedPolygon)
         }
 
-        return featureCollection(pollutionTiles)
+        return featureCollection(pollution_tiles)
     }
 }
 

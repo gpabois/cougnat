@@ -12,17 +12,23 @@
             </Transition>
             <div class="col" style="z-index: 0; position: relative">
                 <div class="h-100">
-                    <l-map ref="map" :useGlobalLeaflet="false" v-model:bounds="bounds" v-model:center="center" v-model:zoom="zoom" >
+                    <l-map ref="map" :useGlobalLeaflet="false" v-model:bounds="bounds" v-model:center="center" v-model:zoom="zoom" @ready="onReady" >    
+                        <l-geo-json 
+                            :geojson="monitoring_perimeter?.areas" 
+                            :options="{style: {color: '#333333'}}"></l-geo-json>
+                        <l-geo-json :geojson="pollution_tiles" v-if="pollution_tiles"></l-geo-json>
                         <l-tile-layer v-for="layer in layers" 
                             :attribution="layer.attribution" 
                             :url="layer.url"
                         ></l-tile-layer>
                     </l-map>
+                    {{ pollution_tiles }}
+                    {{  error }}
                 </div>
                 <div class="p-3 w-100 d-flex flex-column align-items-end" style="position: absolute; top: 0; z-index: 2000">
                     <div class="btn-group">
                         <select class="form-select" v-model="current_organisation">
-                            <option v-for="organisation in organisations">
+                            <option v-for="organisation in organisations" :value="organisation">
                                 {{ organisation.name }}
                             </option>
                         </select>
@@ -34,7 +40,7 @@
 </template>
 <script setup lang="ts">
 import { LMap, LGeoJson, LTileLayer, LCircle} from "@vue-leaflet/vue-leaflet";
-import { FeatureCollection } from "@turf/turf";
+import { FeatureCollection, featureCollection } from "@turf/turf";
 import { LatLngBounds, Polygon } from "leaflet";
 import "leaflet/dist/leaflet.css"
 import { latLngBoundsToFeature } from "~/geo/utils";
@@ -65,26 +71,24 @@ const closePanel = function() {
     panelState.value = null 
 }
 
-
-const current_organisation = ref<Organisation | null>(null);
-const monitoring_perimeter = ref<FeatureCollection | null>(null);
 const {data: organisations} = useAsyncData(() => $api.organisation.GetMine())
-const {data: pollutionTiles, refresh: refreshPollutionTiles} = useAsyncData(
-    'fetchPollutionTiles', async () => {
-    
+const current_organisation = ref<Organisation | null>(null);
+const {data: monitoring_perimeter} = useAsyncData('fetchMonitoringPrimeter', async () => {
     if(!current_organisation.value) {
-        return []
+        return null;
     }
+    return await $api.monitoring.GetPerimeter(current_organisation.value.id)
+}, {
+    watch: [current_organisation]
+})
 
-    if(!box.value) {
-        return []
-    }
-
-    return await $api.monitoring.GetCurrentPollution(current_organisation.value!.id, box.value!, 13)
+const {data: pollution_tiles, refresh: refreshPollutionTiles, error} = useAsyncData<FeatureCollection>('fetchPollutionTiles', async () => {
+    if(!current_organisation.value || !box.value) return featureCollection([])
+    return await $api.monitoring.GetCurrentPollution(current_organisation.value!.id, box.value!, zoom.value)
 }, {
     watch: [current_organisation, box, zoom]
 })
 
-onBeforeMount(() => setInterval(() => refreshPollutionTiles(), 1000));
+const onReady = () => { bounds.value = map.value?.leafletObject?.getBounds() }
 
 </script>
