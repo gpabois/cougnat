@@ -43,7 +43,8 @@ class MockMonitoringRepository implements IMonitoringRepository {
     }
 
     async GetCurrentPollution(organisation_id: string, bounds: Polygon, zoom: number): Promise<FeatureCollection> {
-        zoom = Math.max(zoom, 16)
+        zoom = Math.min(zoom, 17)
+        
         const perimeter = await this.GetPerimeter(organisation_id);
         const perimeterPolygons = perimeter.areas.features.map((feature) => feature)
         const roi = intersect(perimeterPolygons[0], bounds)

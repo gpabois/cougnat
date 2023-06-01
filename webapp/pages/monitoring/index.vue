@@ -84,7 +84,7 @@ const {data: monitoring_perimeter} = useAsyncData('fetchMonitoringPrimeter', asy
 
 const {data: pollution_tiles, refresh: refreshPollutionTiles, error} = useAsyncData<FeatureCollection>('fetchPollutionTiles', async () => {
     if(!current_organisation.value || !box.value) return featureCollection([])
-    return await $api.monitoring.GetCurrentPollution(current_organisation.value!.id, box.value!, zoom.value)
+    return await $api.monitoring.GetCurrentPollution(current_organisation.value!.id, box.value!, 1.3 * zoom.value)
 }, {
     watch: [current_organisation, box, zoom]
 })
