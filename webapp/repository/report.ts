@@ -52,7 +52,7 @@ class MockReportRepository {
     }
 
     async GetMine(): Promise<Array<Report>> {
-        return await itertools.toArray<Report>(local.cursor('reports'))
+        return await itertools.async.toArray<Report>(local.cursor('reports'))
     }
 }
 

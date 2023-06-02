@@ -68,13 +68,18 @@ export namespace tiles {
         }
     }
 
-    export function toPoint(tile: TileIndex): Point {
+    // Returns a LatLng vector
+    export function toVec(tile: TileIndex) : Vector {
         const n = Math.pow(2, tile.zoom);
         const long_deg = tile.x / n * 360.0 - 180.0;
         const lat_rad = Math.atan(Math.sinh(Math.PI * (1 - 2 * tile.y / n)));
         const lat_deg = lat_rad * 180.0 / Math.PI;
+        return [lat_deg, long_deg]
+    }
 
-        return point([long_deg, lat_deg]).geometry
+    export function toPoint(tile: TileIndex): Point {
+        const v = toVec(tile)
+        return point([v[1], v[0]]).geometry
     }
 
     export function fromBox(box: BBox, zoom: number): TileIndexBounds {

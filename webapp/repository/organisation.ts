@@ -2,7 +2,8 @@ import { FeatureCollection, circle, point, featureCollection } from "@turf/turf"
 
 interface Organisation {
     id: string,
-    name: string
+    name: string,
+    permissions?: string[]
 }
 
 interface IOrganisationRepository {
@@ -12,7 +13,14 @@ interface IOrganisationRepository {
 const ORGANISATION_FIXTURES: Array<Organisation> = [
     {
         id: "acme",
-        name: 'Acme'
+        name: 'Acme',
+        permissions: ["broadcast"]
+    }, {
+        id: "mairie-saint-maur",
+        name: 'Mairie Saint-Maur-des-Fossées'
+    }, {
+        id: "DRIEAT-IF-UD94",
+        name: 'DRIEAT-IF/UD94'
     }
 ];
 
