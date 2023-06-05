@@ -1,5 +1,6 @@
 import { BBox, Feature, Point, Polygon, bbox, bboxPolygon, featureCollection, point } from "@turf/turf";
 import {LatLngBounds, polygon} from 'leaflet';
+import vector from "~/vector";
 
 export function latLngBoundsToFeature(refBbox: LatLngBounds | Ref<LatLngBounds>): Feature<Polygon> {
     const bbox = unref(refBbox);
@@ -92,9 +93,23 @@ export namespace tiles {
         }
     }
 
+    /**
+     * Returns [x, y, width, height]
+     * @param tile
+     */
+    export function toBoxVec(tile: TileIndex): Vector {
+        const ne = toVec(tile);
+        const sw = toVec(nextSW(tile));
+        return [...ne, ...vector.diff(ne, sw)]
+    }
+
     export function toBox(tile: TileIndex): BBox {
         const ne = point(toPoint(tile).coordinates);
         const sw = point(toPoint(nextSW(tile)).coordinates);
         return bbox(featureCollection([ne, sw]))    
+    }
+
+    export function toPolygon(tile: TileIndex): Polygon {
+        return bboxPolygon(toBox(tile)).geometry;
     }
 }

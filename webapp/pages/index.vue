@@ -2,7 +2,7 @@
     <div class="container-fluid vh-100 vw-100 g-0 d-flex flex-column">
         <div class="row g-0 flex-grow-1">
             <Transition name="slide-x">
-                <div class="col-3 shadow-lg" style="z-index: 1000; position: relative; overflow: scroll; max-height: 100%;" v-if="panelState">
+                <div class="col-3 shadow-lg" style="z-index: 1000; position: relative; overflow: auto; max-height: 100%;" v-if="panelState">
                     <div style="width: 100%; position: absolute; top: 0;" class="d-flex flex-column align-items-end p-1">
                         <button class="btn btn-lg btn-link text-dark" @click="closePanel()">
                             <i class="bi bi-x-circle-fill border-white"></i>

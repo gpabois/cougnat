@@ -88,6 +88,7 @@
 
                         <l-tile-layer v-for="layer in layers" 
                             :attribution="layer.attribution" 
+                            :options="layer.options || {}"
                             :url="layer.url"
                         ></l-tile-layer>
                     </l-map>
@@ -128,10 +129,16 @@ import {PollutionMatrix, PollutionTile, PollutionData, SectorMonitoring} from '~
 import {tiles} from '~/geo/utils'
 import color from "~/color";
 
-const layers = [{
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; <a target="_blank" href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-}]
+const layers = computed(() => {
+    const l = [{
+        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        attribution: '&copy; <a target="_blank" href="http://osm.org/copyright">OpenStreetMap</a> contributors',
+        options: {}
+    }]
+
+
+    return l
+})
 
 const panelState = ref<any>(null);
 const map = ref(null);

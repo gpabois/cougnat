@@ -10,6 +10,21 @@ export namespace pipeline {
         )
     }
 
+    export function mul(...vs: Iterable<number>[]) : Generator<number> {
+        return itertools.map(
+            itertools.zip(...vs),
+            (els) => els.reduce((acc, v) => acc * v, 1.0)
+        )
+    }
+
+    export function div(v2: Iterable<number>, v1: Iterable<number>) : Generator<number> {
+        return itertools.map(
+            itertools.zip(v2, v1),
+            ([e2, e1]) => e2/e1
+        )
+    }
+
+
     export function scalar_mult(v: Iterable<number>, scalar: number): Generator<number> {
         return itertools.map(v, (e1) => e1 * scalar)
     }   
@@ -22,6 +37,20 @@ function diff(v2: Vector, v1: Vector): Vector {
         pipeline.scalar_mult(v1, -1.0)
     ))
 }
+
+// v2 / v1
+function div(v2: Vector, v1: Vector): Vector {
+    return itertools.toArray(pipeline.div(
+        v2,
+        v1
+    ))
+}
+
+// v2 * v1 (element wise)
+function mul(...vs: Vector[]): Vector {
+    return itertools.toArray(pipeline.mul(...vs))
+}
+
 
 function scalar_product(v2: Vector, v1: Vector): number {
     return itertools.reduce(
@@ -56,6 +85,7 @@ export default {
     walk,
     norm,
     normalise,
+    div, mul,
     scalar_product,
     pipeline
 }
