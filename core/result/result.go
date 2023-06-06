@@ -17,6 +17,16 @@ type Result[T any] struct {
 	err   error
 }
 
+func IntoAny[T any](result Result[T]) Result[any] {
+	if result.HasFailed() {
+		return Failed[any](result.err)
+	}
+
+	val := any(result.inner)
+
+	return Success(val)
+}
+
 func Into[T any](result Result[any]) Result[T] {
 	if result.HasFailed() {
 		return Failed[T](result.err)

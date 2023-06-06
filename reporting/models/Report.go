@@ -4,17 +4,23 @@ import (
 	"time"
 
 	auth "github.com/gpabois/cougnat/auth/models"
-	geo "github.com/gpabois/cougnat/core/geo"
+	geo "github.com/gpabois/cougnat/core/geojson"
 	"github.com/gpabois/cougnat/core/option"
 )
 
 type ReportID = string
 
+type ReportType struct {
+	Name  string
+	Type  string
+	Label string
+}
+
 // A report
 type Report struct {
 	ID        option.Option[ReportID]
 	Owner     option.Option[auth.ActorID]
-	Location  geo.Point
+	Location  geo.Feature
 	Nature    string
 	Rate      int
 	CreatedAt time.Time

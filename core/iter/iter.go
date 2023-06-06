@@ -117,16 +117,20 @@ type ArrayIterator[T any] struct {
 }
 
 func IterArray[T any](array *[]T) Iterator[T] {
-	return ArrayIterator[T]{
+	return &ArrayIterator[T]{
 		array:  array,
-		cursor: 0,
+		cursor: -1,
 	}
 }
 
-func (iter ArrayIterator[T]) Next() opt.Option[T] {
+func (iter *ArrayIterator[T]) Next() opt.Option[T] {
+	iter.cursor++
+
 	if iter.cursor >= len(*iter.array) {
+		iter.cursor = len(*iter.array)
 		return opt.None[T]()
 	}
+
 	return opt.Some((*iter.array)[iter.cursor])
 }
 

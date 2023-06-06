@@ -7,16 +7,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_Bson(t *testing.T) {
+func Test_Json(t *testing.T) {
 	expectedVal := fixture()
 
-	resMarshal := MarshalBson(expectedVal)
+	resMarshal := MarshalJson(expectedVal)
 	assert.True(t, resMarshal.IsSuccess(), resMarshal.UnwrapError())
 
 	marshalled := resMarshal.Expect()
 	fmt.Println(marshalled)
 
-	resUnMarshal := UnMarshalBson[testStruct](marshalled)
+	resUnMarshal := UnMarshalJson[testStruct](marshalled)
 	assert.True(t, resUnMarshal.IsSuccess(), resUnMarshal.UnwrapError())
 
 	unmarshalled := resUnMarshal.Expect()

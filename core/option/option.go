@@ -101,6 +101,14 @@ func (opt Option[T]) IsNone() bool {
 	return !opt.isSet
 }
 
+func (opt Option[T]) UnwrapOr(val func() T) T {
+	if !opt.IsSome() {
+		return val()
+	}
+
+	return opt.value
+}
+
 func (opt Option[T]) Expect() T {
 	if !opt.IsSome() {
 		panic("empty value")

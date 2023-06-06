@@ -9,27 +9,31 @@ import (
 
 type subTestStruct struct {
 	El0 int
-	El1 bool
+	El1 []bool
 }
 type testStruct struct {
 	OptValue    option.Option[string]
 	StructValue subTestStruct
 }
 
-func Test_Normalisation(t *testing.T) {
-	expectedVal := testStruct{
+func fixture() testStruct {
+	return testStruct{
 		OptValue: option.Some("test"),
 		StructValue: subTestStruct{
 			El0: 10,
-			El1: true,
+			El1: []bool{true, false, true},
 		},
 	}
+}
+
+func Test_Normalisation(t *testing.T) {
+	expectedVal := fixture()
 
 	expectedNorm := make(NormalisedStruct)
 	expectedNorm["OptValue"] = "test"
 	expectedNorm["StructValue"] = NormalisedStruct{
 		"El0": 10,
-		"El1": true,
+		"El1": []any{true, false, true},
 	}
 
 	norm := Normalise(expectedVal)

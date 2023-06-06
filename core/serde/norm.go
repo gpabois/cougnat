@@ -12,7 +12,7 @@ import (
 
 type NormalisedStruct = map[string]any
 
-var primaryTypes = []reflect.Kind{
+var PRIMARY_TYPES = []reflect.Kind{
 	reflect.Bool,
 	reflect.Int,
 	reflect.Int8,
@@ -30,25 +30,37 @@ var primaryTypes = []reflect.Kind{
 	reflect.Complex64,
 	reflect.Complex128,
 	reflect.String,
+	reflect.Interface,
 }
 
-func Normalise[T any](value T) any {
-	val := reflect.ValueOf(value)
+func normaliseByReflectType(val any) any {
+	typ := reflect.ValueOf(val).Type()
+	valOf := reflect.ValueOf(val)
 
-	// Deref pointer
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
+	if slices.Contains(PRIMARY_TYPES, typ.Kind()) {
+		return val
 	}
 
-	if slices.Contains(primaryTypes, val.Kind()) {
-		return value
+	if typ.Kind() == reflect.Slice {
+		slc := []any{}
+		for i := 0; i < valOf.Len(); i++ {
+			slc = append(slc, normaliseByReflectType(valOf.Index(i).Interface()))
+		}
+		return any(slc)
+	}
+
+	// We handle struct-based types
+	if typ.Kind() != reflect.Struct {
+		return result.Failed[any](errors.New(fmt.Sprintf("type %v cannot be denormalised", typ.Kind())))
 	}
 
 	norm := make(map[string]any)
+	anyValOf := reflect.ValueOf(val)
 
-	for i := 0; i < val.NumField(); i++ {
-		field := val.Field(i)
-		fieldName := val.Type().Field(i).Name
+	for i := 0; i < typ.NumField(); i++ {
+		field := anyValOf.Field(i)
+
+		fieldName := typ.Field(i).Name
 
 		if !field.CanInterface() {
 			continue
@@ -58,24 +70,28 @@ func Normalise[T any](value T) any {
 
 		if option.IsOption(fieldVal) {
 			optVal := fieldVal.(option.IOption)
+
 			// Don't set nil value
 			if optVal.IsNone() {
 				continue
 			}
 
-			norm[fieldName] = Normalise(optVal.Get())
+			norm[fieldName] = normaliseByReflectType(optVal.Get())
 		} else {
-			norm[fieldName] = Normalise(fieldVal)
+			norm[fieldName] = normaliseByReflectType(fieldVal)
 		}
 	}
 
 	return norm
 }
 
-func denormaliseByReflectType(typ reflect.Type, val any) result.Result[any] {
+func Normalise[T any](value T) any {
+	return normaliseByReflectType(value)
+}
 
+func denormaliseByReflectType(typ reflect.Type, val any) result.Result[any] {
 	// Primary type, easy !
-	if slices.Contains(primaryTypes, typ.Kind()) {
+	if slices.Contains(PRIMARY_TYPES, typ.Kind()) {
 		switch typ.Kind() {
 		case reflect.Int64:
 		case reflect.Int32:
@@ -84,12 +100,37 @@ func denormaliseByReflectType(typ reflect.Type, val any) result.Result[any] {
 		case reflect.Int:
 			integer := reflect.ValueOf(val).Int()
 			return result.Success[any](int(integer))
+		// Type is any we return it
+		case reflect.Interface:
+			return result.Success(val)
 		default:
 			return result.Success(val)
 		}
-
 	}
 
+	// Slice-based values, we need to denormalise each element.
+	if typ.Kind() == reflect.Slice || typ.Kind() == reflect.Array {
+		arrElType := typ.Elem()
+		elValues := reflect.ValueOf(val)
+
+		slc := reflect.New(reflect.SliceOf(arrElType))
+		//
+		for i := 0; i < elValues.Len(); i++ {
+			// Denormalise the element
+			res := denormaliseByReflectType(arrElType, elValues.Index(i).Interface())
+
+			if res.HasFailed() {
+				return result.Failed[any](res.UnwrapError())
+			}
+			// Add
+			slc.Elem().Set(reflect.Append(slc.Elem(), reflect.ValueOf(res.Expect())))
+		}
+
+		// Denormalise the array
+		return result.Success(slc.Elem().Interface())
+	}
+
+	// We handle struct-based types
 	if typ.Kind() != reflect.Struct {
 		return result.Failed[any](errors.New(fmt.Sprintf("type %v cannot be denormalised", typ.Kind())))
 	}
