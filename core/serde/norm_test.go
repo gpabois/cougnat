@@ -12,8 +12,8 @@ type subTestStruct struct {
 	El1 []bool
 }
 type testStruct struct {
-	OptValue    option.Option[string]
-	StructValue subTestStruct
+	OptValue    option.Option[string] `serde:"opt_value"`
+	StructValue subTestStruct         `serde:"struct_value"`
 }
 
 func fixture() testStruct {
@@ -30,8 +30,8 @@ func Test_Normalisation(t *testing.T) {
 	expectedVal := fixture()
 
 	expectedNorm := make(NormalisedStruct)
-	expectedNorm["OptValue"] = "test"
-	expectedNorm["StructValue"] = NormalisedStruct{
+	expectedNorm["opt_value"] = "test"
+	expectedNorm["struct_value"] = NormalisedStruct{
 		"El0": 10,
 		"El1": []any{true, false, true},
 	}

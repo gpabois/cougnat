@@ -25,7 +25,7 @@ type ReportService interface {
 type ImplReportService struct {
 	repo   repos.ReportRepository
 	authz  auth_svcs.AuthorizationService
-	evrecv ev.ReportEventReceiver
+	events ev.ReportEventReceiver
 }
 
 // Report any annoyances.
@@ -42,12 +42,12 @@ func (svc ImplReportService) Report(ctx context.Context, report models.Report) r
 		})).
 		// Unwrap the option to get the report
 		Chain(result.ChainFromAny(func(opt option.Option[models.Report]) result.Result[models.Report] {
-			return opt.IntoResult(errors.New("created report not found"))
+			return opt.IntoResult(errors.New("not found"))
 		})).
 		// Send an event, and create access controls for the owner
 		Then(result.ThenFromAny(func(report models.Report) {
 			// Send an event
-			svc.evrecv.OnNewReport(report.ID.Expect())
+			svc.events.OnNewReport(report)
 
 			// Create an ACL for the Owner, if any
 			if report.Owner.IsSome() {
@@ -79,7 +79,7 @@ func (svc ImplReportService) DeleteReport(ctx context.Context, reportID models.R
 			})).
 			// Send an event
 			Then(result.ThenFromAny(func(deleted bool) {
-				svc.evrecv.OnDeletedReport(reportID)
+				svc.events.OnDeletedReport(reportID)
 			})))
 }
 

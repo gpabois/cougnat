@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/go-kit/kit/endpoint"
-	"github.com/gpabois/cougnat/core/geo"
+	geo "github.com/gpabois/cougnat/core/geojson"
 	"github.com/gpabois/cougnat/reporting/models"
 	"github.com/gpabois/cougnat/reporting/services"
 )

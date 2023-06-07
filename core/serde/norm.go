@@ -62,6 +62,11 @@ func normaliseByReflectType(val any) any {
 
 		fieldName := typ.Field(i).Name
 
+		marshalName, ok := typ.Field(i).Tag.Lookup("serde")
+		if ok {
+			fieldName = marshalName
+		}
+
 		if !field.CanInterface() {
 			continue
 		}
@@ -149,6 +154,10 @@ func denormaliseByReflectType(typ reflect.Type, val any) result.Result[any] {
 		fieldType := field.Type()
 		fieldName := typ.Field(i).Name
 
+		marshalName, ok := typ.Field(i).Tag.Lookup("serde")
+		if ok {
+			fieldName = marshalName
+		}
 		normValue, ok := norm[fieldName]
 
 		// Take care of optional values

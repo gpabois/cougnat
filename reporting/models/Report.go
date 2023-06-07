@@ -11,19 +11,19 @@ import (
 type ReportID = string
 
 type ReportType struct {
-	Name  string
-	Type  string
-	Label string
+	Name  string `serde:"name"`
+	Type  string `serde:"type"`
+	Label string `serde:"label"`
 }
 
 // A report
 type Report struct {
-	ID        option.Option[ReportID]
-	Owner     option.Option[auth.ActorID]
-	Location  geo.Feature
-	Nature    string
-	Rate      int
-	CreatedAt time.Time
+	ID         option.Option[ReportID]     `serde:"id"`
+	Owner      option.Option[auth.ActorID] `serde:"owner"`
+	Location   geo.Feature                 `serde:"location"`
+	Nature     string                      `serde:"nature"`
+	Rate       int                         `serde:"rate"`
+	ReportedAt time.Time                   `serde:"reported_at"`
 }
 
 func (report Report) ObjectID() option.Option[auth.ObjectID] {

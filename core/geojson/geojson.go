@@ -1,4 +1,4 @@
-package geo
+package geojson
 
 import "github.com/gpabois/cougnat/core/option"
 

@@ -23,7 +23,7 @@ func Test_ReportService_Report_Success(t *testing.T) {
 	container := dig.New()
 
 	// Mocks deps
-	reportEvRecv := ev_mocks.NewReportEventReceiver(t)
+	reportEvents := ev_mocks.NewReportEventReceiver(t)
 	reportRepo := repo_mocks.NewReportRepository(t)
 	authz := auth_mocks.NewAuthorizationService(t)
 
@@ -32,7 +32,7 @@ func Test_ReportService_Report_Success(t *testing.T) {
 		return reportRepo
 	})
 	container.Provide(func() ev.ReportEventReceiver {
-		return reportEvRecv
+		return reportEvents
 	})
 	container.Provide(func() auth_svcs.AuthorizationService {
 		return authz
@@ -56,7 +56,7 @@ func Test_ReportService_Report_Success(t *testing.T) {
 		ctx := context.WithValue(context.Background(), "CurrentActorID", owner)
 
 		// Mock deps
-		reportEvRecv.EXPECT().OnNewReport(reportID).Return()
+		reportEvents.EXPECT().OnNewReport(reportID).Return()
 		reportRepo.EXPECT().Create(report).Return(result.Success(reportID))
 		reportRepo.EXPECT().GetById(reportID).Return(
 			result.Success(
@@ -73,7 +73,7 @@ func Test_ReportService_Report_Success(t *testing.T) {
 		assert.True(t, res.IsSuccess(), res.UnwrapError())
 		assert.Equal(t, expectedReport, res.Expect())
 		// Should have sent OnNewReport event to the receiver
-		reportEvRecv.AssertCalled(t, "OnNewReport", reportID)
+		reportEvents.AssertCalled(t, "OnNewReport", reportID)
 	})
 
 	assert.Nil(t, err)
