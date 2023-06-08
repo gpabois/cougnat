@@ -125,6 +125,14 @@ func Map[T any, U any](value Option[T], mapper func(val T) U) Option[U] {
 	}
 }
 
+func Chain[T any, U any](value Option[T], mapper func(val T) Option[U]) Option[U] {
+	if value.IsNone() {
+		return None[U]()
+	} else {
+		return mapper(value.value)
+	}
+}
+
 func Some[T any](value T) Option[T] {
 	return Option[T]{isSet: true, value: value}
 }

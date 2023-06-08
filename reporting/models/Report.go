@@ -11,9 +11,10 @@ import (
 type ReportID = string
 
 type ReportType struct {
-	Name  string `serde:"name"`
-	Type  string `serde:"type"`
-	Label string `serde:"label"`
+	Name   string `serde:"name"`
+	Type   string `serde:"type"`
+	Label  string `serde:"label"`
+	Nature string `serde:"nature"`
 }
 
 // A report
@@ -21,7 +22,7 @@ type Report struct {
 	ID         option.Option[ReportID]     `serde:"id"`
 	Owner      option.Option[auth.ActorID] `serde:"owner"`
 	Location   geo.Feature                 `serde:"location"`
-	Nature     string                      `serde:"nature"`
+	Type       ReportType                  `serde:"type"`
 	Rate       int                         `serde:"rate"`
 	ReportedAt time.Time                   `serde:"reported_at"`
 }

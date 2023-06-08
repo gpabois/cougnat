@@ -15,21 +15,15 @@ import (
 	repos "github.com/gpabois/cougnat/reporting/repositories"
 )
 
-// Interface
-type ReportService interface {
-	Report(ctx context.Context, report models.Report) result.Result[models.Report]
-	DeleteReport(ctx context.Context, reportID models.ReportID) result.Result[bool]
-}
-
 // Implementation
-type ImplReportService struct {
+type ReportService struct {
 	repo   repos.ReportRepository
 	authz  auth_svcs.AuthorizationService
-	events ev.ReportEventReceiver
+	events ev.IReportEventReceiver
 }
 
 // Report any annoyances.
-func (svc ImplReportService) Report(ctx context.Context, report models.Report) result.Result[models.Report] {
+func (svc *ReportService) Report(ctx context.Context, report models.Report) result.Result[models.Report] {
 	ownerID := auth_utils.GetCurrentActorID(ctx)
 	report.Owner = ownerID
 
@@ -62,7 +56,7 @@ func (svc ImplReportService) Report(ctx context.Context, report models.Report) r
 }
 
 // Delete a report, if the actor has the right to do so.
-func (svc ImplReportService) DeleteReport(ctx context.Context, reportID models.ReportID) result.Result[bool] {
+func (svc *ReportService) DeleteReport(ctx context.Context, reportID models.ReportID) result.Result[bool] {
 	return result.Into[bool](
 		// Check if authenticated
 		guards.IsAuthenticated(ctx).ToAny().
@@ -84,8 +78,8 @@ func (svc ImplReportService) DeleteReport(ctx context.Context, reportID models.R
 }
 
 // Provide the report service
-func ProvideReportService(repo repos.ReportRepository, authz auth_svcs.AuthorizationService, evrecv ev.ReportEventReceiver) ReportService {
-	return &ImplReportService{
+func ProvideReportService(repo repos.ReportRepository, authz auth_svcs.AuthorizationService, evrecv ev.IReportEventReceiver) ReportService {
+	return &ReportService{
 		repo,
 		authz,
 		evrecv,

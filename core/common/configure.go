@@ -1,4 +1,4 @@
-package share
+package common
 
 import "go.uber.org/dig"
 

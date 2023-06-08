@@ -6,8 +6,8 @@ import (
 	"github.com/gpabois/cougnat/core/result"
 )
 
-//go:generate mockery
-type AuthorizationService interface {
+//go:generate mockery --name AuthorizationService
+type IAuthorizationService interface {
 	// Create a role and add it to the subject.
 	// Equivalent to CreateRole + AddRoleTo
 	CreateAndAddRoleTo(subject models.ActorID, roleName string, object models.ObjectID, permissions []string)
