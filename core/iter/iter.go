@@ -3,7 +3,6 @@ package iter
 import (
 	"github.com/gpabois/cougnat/core/option"
 	opt "github.com/gpabois/cougnat/core/option"
-	"github.com/gpabois/cougnat/core/result"
 )
 
 type Iterable[T any] interface {
@@ -74,14 +73,6 @@ func Collect[C, T any](fromIter func(iter Iterator[T]) C, iter Iterator[T]) C {
 	return fromIter(iter)
 }
 
-func CollectToArray[T any](iter Iterator[T]) []T {
-	var array []T
-	ForEach(iter, func(el T) {
-		array = append(array, el)
-	})
-	return array
-}
-
 type MappedIterator[T any, R any] struct {
 	mapper func(T) R
 	inner  Iterator[T]
@@ -109,46 +100,4 @@ func (iter FilteredIterator[T]) Next() opt.Option[T] {
 		}
 	}
 	return opt.None[T]()
-}
-
-type ArrayIterator[T any] struct {
-	array  *[]T
-	cursor int
-}
-
-func IterArray[T any](array *[]T) Iterator[T] {
-	return &ArrayIterator[T]{
-		array:  array,
-		cursor: -1,
-	}
-}
-
-func (iter *ArrayIterator[T]) Next() opt.Option[T] {
-	iter.cursor++
-
-	if iter.cursor >= len(*iter.array) {
-		iter.cursor = len(*iter.array)
-		return opt.None[T]()
-	}
-
-	return opt.Some((*iter.array)[iter.cursor])
-}
-
-type IterResult[T any] Iterator[result.Result[T]]
-
-// Take an iterator over a result and reduce it
-func Result_FromIter[T any](iter Iterator[result.Result[T]]) result.Result[[]T] {
-	var array []T
-
-	for c := iter.Next(); c.IsSome(); c = iter.Next() {
-		val := c.Expect()
-
-		if val.HasFailed() {
-			return result.Failed[[]T](val.UnwrapError())
-		}
-
-		array = append(array, val.Expect())
-	}
-
-	return result.Success(array)
 }

@@ -1,7 +1,7 @@
 package services
 
 import (
-	"time"
+	"context"
 
 	"github.com/gpabois/cougnat/core/result"
 	"github.com/gpabois/cougnat/monitoring/models"
@@ -13,6 +13,10 @@ type PollutionService struct {
 	polMapRepo     repositories.IPolMapRepository
 }
 
-func (svc *PollutionService) GetPollutionTiles(orgID string, sectionID []string, zoom int, begin time.Time, end time.Time) result.Result[models.PolTileCollection] {
-	orgMonRes := svc.monitoringRepo.GetOrganisationMonitoring(orgID)
+func (svc *PollutionService) GetPollutionTiles(ctx context.Context, args GetPollutionTilesArgs) result.Result[models.PolTileCollection] {
+	orgMonRes := svc.monitoringRepo.GetOrganisationMonitoring(args.OrganisationID)
+	if orgMonRes.HasFailed() {
+		return result.Result[[]models.PolTile]{}.Failed(orgMonRes.UnwrapError())
+	}
+	orgMon := orgMonRes.Expect()
 }

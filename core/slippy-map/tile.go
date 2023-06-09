@@ -13,6 +13,22 @@ type TileIndex struct {
 	Z int
 }
 
+func (tile TileIndex) ZoomOut(out int) TileIndex {
+	return TileIndex{
+		X: int(float64(tile.X) * math.Pow(-2.0, float64(out))),
+		Y: int(float64(tile.Y) * math.Pow(-2.0, float64(out))),
+		Z: tile.Z - out,
+	}
+}
+
+func (tile TileIndex) ZoomIn(out int) TileIndex {
+	return TileIndex{
+		X: int(float64(tile.X) * math.Pow(2.0, float64(out))),
+		Y: int(float64(tile.Y) * math.Pow(2.0, float64(out))),
+		Z: tile.Z - out,
+	}
+}
+
 func TileIndexFromLatLng(lat float64, lng float64, zoom int) TileIndex {
 	n := math.Exp2(float64(zoom))
 	x := int(math.Floor((lng + 180.0) / 360.0 * n))

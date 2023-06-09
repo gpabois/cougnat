@@ -1,13 +1,23 @@
 package services
 
 import (
-	"time"
+	"context"
 
 	"github.com/gpabois/cougnat/core/result"
 	"github.com/gpabois/cougnat/monitoring/models"
 )
 
+type GetPollutionTilesArgs struct {
+	OrganisationID string
+	SectionID      []string
+	Zoom           int
+	TimeWindow     struct {
+		Begin int
+		End   int
+	}
+}
+
 //go:generate mockery
 type IPollutionService interface {
-	GetPollutionTiles(orgID string, sectionID []string, zoom int, begin time.Time, end time.Time) result.Result[models.PolTileCollection]
+	GetPollutionTiles(ctx context.Context, args GetPollutionTilesArgs) result.Result[models.PolTileCollection]
 }

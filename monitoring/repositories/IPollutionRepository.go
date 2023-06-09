@@ -69,5 +69,5 @@ func GenIncPollutionCommands(
 type IPolMapRepository interface {
 	IncPollutionTileMany(commands []IncPollutionCommand) result.Result[bool]
 	DecPollutionTileMany(index models.TimeTileIndex, reportType reportingModels.ReportType) result.Result[bool]
-	GetPollutionTimeSlice(ur slippy_map.TileIndex, dl slippy_map.TileIndex, begin int, end int) result.Result[models.PolTimeSlice]
+	GetPollutionTimeSerie(upperLeft slippy_map.TileIndex, lowerRight slippy_map.TileIndex, beginTime int, endTime int) result.Result[models.PollutionTime]
 }
