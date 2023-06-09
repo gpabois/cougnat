@@ -16,7 +16,7 @@ type SparseMatrix[Data any] struct {
 }
 
 func NewSparseMatrix[Data iter.Iterable[Element], Element any, Value any](rowLength int, columnLength int, data Data, indexer func(el Element) (row int, col int), valuer func(el Element) Value) SparseMatrix[Value] {
-	elements := iter.CollectToArray(data.Iter())
+	elements := iter.CollectToSlice[[]Element](data.Iter())
 	NNZ := len(elements)
 	var mat SparseMatrix[Value]
 
