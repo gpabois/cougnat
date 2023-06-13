@@ -66,8 +66,8 @@ func GenIncPollutionCommands(
 }
 
 //go:generate mockery
-type IPolMapRepository interface {
+type IPollutionRepository interface {
 	IncPollutionTileMany(commands []IncPollutionCommand) result.Result[bool]
 	DecPollutionTileMany(index models.TimeTileIndex, reportType reportingModels.ReportType) result.Result[bool]
-	GetPollutionTimeSerie(upperLeft slippy_map.TileIndex, lowerRight slippy_map.TileIndex, beginTime int, endTime int) result.Result[models.PollutionTime]
+	GetPollutionTimeSerie(upperLeft slippy_map.TileIndex, lowerRight slippy_map.TileIndex, beginTime int, endTime int) result.Result[models.PollutionTimeSerie]
 }

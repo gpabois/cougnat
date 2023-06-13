@@ -1,8 +1,8 @@
 package iter
 
 import (
+	"github.com/gpabois/cougnat/core/ops"
 	"github.com/gpabois/cougnat/core/option"
-	opt "github.com/gpabois/cougnat/core/option"
 )
 
 type Iterable[T any] interface {
@@ -10,7 +10,7 @@ type Iterable[T any] interface {
 }
 
 type Iterator[T any] interface {
-	Next() opt.Option[T]
+	Next() option.Option[T]
 }
 
 type FromIterator[T any] interface {
@@ -31,15 +31,14 @@ func First[T any](iter Iterator[T]) option.Option[T] {
 }
 
 func Filter[T any](iter Iterator[T], filter func(T) bool) Iterator[T] {
-	return FilteredIterator[T]{
+	return &FilteredIterator[T]{
 		inner:  iter,
 		filter: filter,
 	}
 }
 
-func Find[T any](iter Iterator[T], filter func(T) bool) opt.Option[T] {
-	it := Filter(iter, filter)
-	return it.Next()
+func Find[T any](iter Iterator[T], filter func(T) bool) option.Option[T] {
+	return Filter(iter, filter).Next()
 }
 
 func Reduce[R any, T any](iter Iterator[T], reducer func(R, T) R, init R) R {
@@ -51,15 +50,12 @@ func Reduce[R any, T any](iter Iterator[T], reducer func(R, T) R, init R) R {
 	return agg
 }
 
-func Any[T any](iter Iterator[T], predicate func(T) bool) bool {
-	return Reduce(iter, func(agg bool, el T) bool {
-		return agg || predicate(el)
-	}, false)
+func Any(iter Iterator[bool]) bool {
+	return Find(iter, ops.IsTrue).UnwrapOr(func() bool { return false })
 }
-func All[T any](iter Iterator[T], predicate func(T) bool) bool {
-	return Reduce(iter, func(agg bool, el T) bool {
-		return agg && predicate(el)
-	}, true)
+
+func All(iter Iterator[bool]) bool {
+	return Find(iter, ops.IsFalse).UnwrapOr(func() bool { return true })
 }
 
 func Map[T any, R any](inner Iterator[T], mapper func(T) R) Iterator[R] {
@@ -78,13 +74,13 @@ type MappedIterator[T any, R any] struct {
 	inner  Iterator[T]
 }
 
-func (iter MappedIterator[T, R]) Next() opt.Option[R] {
+func (iter MappedIterator[T, R]) Next() option.Option[R] {
 	el := iter.inner.Next()
 	if el.IsNone() {
-		return opt.None[R]()
+		return option.None[R]()
 	}
 	val := el.Expect()
-	return opt.Some(iter.mapper(val))
+	return option.Some(iter.mapper(val))
 }
 
 type FilteredIterator[T any] struct {
@@ -92,12 +88,12 @@ type FilteredIterator[T any] struct {
 	inner  Iterator[T]
 }
 
-func (iter FilteredIterator[T]) Next() opt.Option[T] {
-	for el := iter.Next(); el.IsSome(); el = iter.Next() {
+func (iter *FilteredIterator[T]) Next() option.Option[T] {
+	for el := iter.inner.Next(); el.IsSome(); el = iter.inner.Next() {
 		value := el.Expect()
 		if iter.filter(value) {
 			return el
 		}
 	}
-	return opt.None[T]()
+	return option.None[T]()
 }

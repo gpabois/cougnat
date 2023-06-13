@@ -7,7 +7,7 @@ import (
 	"github.com/gpabois/cougnat/monitoring/models"
 )
 
-type GetPollutionTilesArgs struct {
+type AggregatePollutionTilesArgs struct {
 	OrganisationID string
 	SectionID      []string
 	Zoom           int
@@ -19,5 +19,5 @@ type GetPollutionTilesArgs struct {
 
 //go:generate mockery
 type IPollutionService interface {
-	GetPollutionTiles(ctx context.Context, args GetPollutionTilesArgs) result.Result[models.PolTileCollection]
+	AggregatePollutionMatrix(ctx context.Context, args AggregatePollutionTilesArgs) result.Result[models.PollutionMatrix]
 }

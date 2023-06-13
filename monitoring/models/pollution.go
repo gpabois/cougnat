@@ -65,6 +65,7 @@ func (col PollutionTileCollection) IntoPollutionMatrix(upperRight slippy_map.Til
 func (col PollutionTileCollection) IntoTimeSerie(upperRight slippy_map.TileIndex, lowerRight slippy_map.TileIndex, sampling unit.Sampling) PollutionTimeSerie {
 	// Group the tiles per time steps
 	timeGroup := iter.Group[PollutionTileCollection](col.Iter(), func(tile PollutionTile) int { return tile.ID.TimeID.Step })
+
 	// Transform PollutionTileCollection into a PollutionMatrix
 	// At constant-time
 	points := iter.Map(
@@ -76,7 +77,8 @@ func (col PollutionTileCollection) IntoTimeSerie(upperRight slippy_map.TileIndex
 			}
 		},
 	)
-	return time_serie.FromKeyValueIterator(points, sampling)
+
+	return time_serie.FromIter[PollutionMatrix](points, sampling)
 }
 
 type PollutionData map[string]struct {
@@ -91,4 +93,4 @@ type PollutionTile struct {
 }
 
 type PollutionMatrix = tensor.WSM[PollutionData]
-type PollutionTimeSerie time_serie.TimeSerie[PollutionMatrix]
+type PollutionTimeSerie = time_serie.TimeSerie[PollutionMatrix]

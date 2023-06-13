@@ -10,13 +10,15 @@ import (
 
 type PollutionService struct {
 	monitoringRepo repositories.IMonitoringRepository
-	polMapRepo     repositories.IPolMapRepository
+	pollutionRepo  repositories.IPollutionRepository
 }
 
-func (svc *PollutionService) GetPollutionTiles(ctx context.Context, args GetPollutionTilesArgs) result.Result[models.PolTileCollection] {
+func (svc *PollutionService) AggregatePollutionMatrix(ctx context.Context, args AggregatePollutionTilesArgs) result.Result[models.PollutionMatrix] {
 	orgMonRes := svc.monitoringRepo.GetOrganisationMonitoring(args.OrganisationID)
 	if orgMonRes.HasFailed() {
-		return result.Result[[]models.PolTile]{}.Failed(orgMonRes.UnwrapError())
+		return result.Result[models.PollutionMatrix]{}.Failed(orgMonRes.UnwrapError())
 	}
 	orgMon := orgMonRes.Expect()
+
+	svc.pollutionRepo.GetPollutionTimeSerie()
 }

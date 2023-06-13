@@ -20,6 +20,27 @@ type Sampling struct {
 	Period int
 }
 
+func GetUnitConversion(unit string) float64 {
+	switch unit {
+	case Milisecond:
+		return float64(1.0)
+	case Second:
+		return GetUnitConversion(Milisecond) / 1000.0
+	case Minute:
+		return GetUnitConversion(Second) / 60.0
+	case Hour:
+		return GetUnitConversion(Minute) / 60.0
+	case Day:
+		return GetUnitConversion(Hour) / 24.0
+	case Week:
+		return GetUnitConversion(Day) / 7.0
+	case Year:
+		return GetUnitConversion(Day) / 365.0
+	default:
+		return 0.0
+	}
+}
+
 func ConvertToUnit(date time.Time, unit string) float64 {
 	switch unit {
 	case Milisecond:
