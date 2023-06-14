@@ -7,6 +7,7 @@ import (
 	"github.com/gpabois/cougnat/core/result"
 	"github.com/gpabois/cougnat/core/serde"
 	slippy_map "github.com/gpabois/cougnat/core/slippy-map"
+	time_serie "github.com/gpabois/cougnat/core/time-serie"
 	"github.com/gpabois/cougnat/monitoring/models"
 	"github.com/gpabois/cougnat/monitoring/repositories"
 	"go.mongodb.org/mongo-driver/bson"
@@ -14,11 +15,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type PolMapRepository struct {
+type PollutionRepository struct {
 	coll *mongo.Collection
 }
 
-func (repo *PolMapRepository) IncPollutionTileMany(commands []repositories.IncPollutionCommand) result.Result[bool] {
+func (repo *PollutionRepository) IncPollutionTileMany(commands []repositories.IncPollutionCommand) result.Result[bool] {
 
 	session, err := repo.coll.Database().Client().StartSession()
 	if err != nil {
@@ -37,7 +38,6 @@ func (repo *PolMapRepository) IncPollutionTileMany(commands []repositories.IncPo
 			update := bson.D{
 				bson.E{"$setOnInsert", bson.D{
 					bson.E{"id", serde.Normalise(cmd.TileIndex)},
-					bson.E{"cluster_id", serde.Normalise(cmd.ClusterIndex)},
 					bson.E{"types", bson.M{}},
 				}},
 				bson.E{"$add", bson.D{
@@ -63,69 +63,44 @@ func (repo *PolMapRepository) IncPollutionTileMany(commands []repositories.IncPo
 	return result.Success(res.(bool))
 }
 
-func window(ul slippy_map.TileIndex, dr slippy_map.TileIndex, begin int, end int) bson.D {
+func bounds(tileBounds slippy_map.TileBounds, timeBounds time_serie.TimeInterval) bson.D {
 	return bson.D{
 		bson.E{"id.x", bson.D{
-			bson.E{"$gt", ul.X},
-			bson.E{"$lt", dr.X},
+			bson.E{"$gte", tileBounds.MinX()},
+			bson.E{"$lte", tileBounds.MaxX()},
 		}},
 		bson.E{"id.y", bson.D{
-			bson.E{"$gt", ul.Y},
-			bson.E{"$lt", dr.Y},
+			bson.E{"$gte", tileBounds.MinY()},
+			bson.E{"$lte", tileBounds.MaxY()},
 		}},
 		bson.E{"id.z", bson.D{
-			bson.E{"$gt", ul.Z},
-			bson.E{"$lt", dr.Z},
+			bson.E{"$gte", tileBounds.MinZ()},
+			bson.E{"$lte", tileBounds.MaxZ()},
 		}},
 		bson.E{"id.t", bson.D{
-			bson.E{"$gt", begin},
-			bson.E{"$lt", end},
+			bson.E{"$gte", timeBounds.Min()},
+			bson.E{"$lte", timeBounds.Max()},
 		}},
 	}
 }
 
-func (repo *PolMapRepository) GetPollutionTiles(ul slippy_map.TileIndex, dr slippy_map.TileIndex, begin int, end int) result.Result[models.PolTimeSlice] {
-	pipeline := bson.A{
-		// Select the polmap subset
-		bson.D{
-			bson.E{"$match", window(ul, dr, begin, end)},
-		},
-		// Group by time
-		bson.D{
-			bson.E{"$group", bson.D{
-				bson.E{"_id", "id.t"},
-				bson.E{"matrix", bson.D{bson.E{"$push", "$$ROOT"}}},
-			}},
-		},
-		// copy _id value to t
-		bson.D{
-			bson.E{"$set", bson.D{
-				bson.E{"t", "$_id"},
-			}},
-		},
-		// sort chronologically
-		bson.D{
-			bson.E{"$sort", bson.D{
-				bson.E{"t", 1},
-			}},
-		},
-	}
-	cursor, err := repo.coll.Aggregate(context.TODO(), pipeline)
+func (repo *PollutionRepository) GetPollutionTiles(tileBounds slippy_map.TileBounds, timeBounds time_serie.TimeInterval) result.Result[models.PollutionTileCollection] {
+	cursor, err := repo.coll.Find(context.TODO(), bounds(tileBounds, timeBounds))
 
 	if err != nil {
-		return result.Result[models.PolTimeSlice]{}.Failed(err)
+		return result.Result[models.PollutionTileCollection]{}.Failed(err)
 	}
 
-	timeSlice := models.PolTimeSlice{}
+	collection := models.PollutionTileCollection{}
 
 	for cursor.Next(context.TODO()) {
-		decodeResult := serde.UnMarshalBson[models.PolTimeSerieEntry](cursor.Current)
+		decodeResult := serde.UnMarshalBson[models.PollutionTile](cursor.Current)
 		if decodeResult.HasFailed() {
-			return result.Result[models.PolTimeSlice]{}.Failed(decodeResult.UnwrapError())
+			return result.Result[models.PollutionTileCollection]{}.Failed(decodeResult.UnwrapError())
 		}
 
-		timeSlice = append(timeSlice, decodeResult.Expect())
+		collection = append(collection, decodeResult.Expect())
 	}
 
-	return result.Success(timeSlice)
+	return result.Success(collection)
 }

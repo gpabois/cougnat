@@ -9,29 +9,25 @@ import (
 )
 
 type ReportServiceConfiguration struct {
-	// Tile sampling
-	TileTimeSampling unit.Sampling
-	TileZoomSampling int
-	// Cluster sampling
-	ClusterTimeSampling unit.Sampling
-	ClusterZoom         int
+	TimeSampling unit.Sampling
+	FloorZoom    int
+	CeilZoom     int
 }
 
 type ReportService struct {
-	cfg        ReportServiceConfiguration
-	polMapRepo repositories.IPolMapRepository
+	cfg           ReportServiceConfiguration
+	pollutionRepo repositories.IPollutionRepository
 }
 
 func (svc *ReportService) HandleNewReport(newReport reportingModels.Report) result.Result[bool] {
 	// Convert into TileIndex
 	return result.Chain(func(commands []repositories.IncPollutionCommand) result.Result[bool] {
-		return svc.polMapRepo.IncPollutionTileMany(commands)
+		return svc.pollutionRepo.IncPollutionTileMany(commands)
 	}, repositories.GenIncPollutionCommands(
 		newReport,
-		svc.cfg.ClusterZoom,
-		svc.cfg.ClusterTimeSampling,
-		svc.cfg.TileZoomSampling,
-		svc.cfg.TileTimeSampling,
+		svc.cfg.CeilZoom,
+		svc.cfg.FloorZoom,
+		svc.cfg.TimeSampling,
 	))
 }
 
@@ -39,20 +35,16 @@ func (svc *ReportService) HandleDeletedReport(deletedReport reportingModels.Repo
 	return result.Success(true)
 }
 
-func ProvideReportService(config *cfg.ConfigMap, polMapRepo repositories.IPolMapRepository) IReportService {
+func ProvideReportService(config *cfg.ConfigMap, pollutionRepository repositories.IPollutionRepository) IReportService {
 	return &ReportService{
 		cfg: ReportServiceConfiguration{
-			TileZoomSampling: cfg.GetInt(config, "Monitoring", "TileSampling", "Zoom").UnwrapOr(func() int { return 16 }),
-			TileTimeSampling: unit.Sampling{
-				Unit:   cfg.Get(config, "Monitoring", "TileSampling", "TimeUnit").UnwrapOr(func() string { return unit.Minute }),
-				Period: cfg.GetInt(config, "Monitoring", "TileSampling", "TimePeriod").UnwrapOr(func() int { return 5 }),
+			CeilZoom: cfg.GetInt(config, "Monitoring", "CeilZoom").UnwrapOr(func() int { return 16 }),
+			TimeSampling: unit.Sampling{
+				Unit:   cfg.Get(config, "Monitoring", "TimeSampling", "Unit").UnwrapOr(func() string { return unit.Minute }),
+				Period: cfg.GetInt(config, "Monitoring", "TimeSampling", "Period").UnwrapOr(func() int { return 1 }),
 			},
-			ClusterZoom: cfg.GetInt(config, "Monitoring", "Cluster", "Zoom").UnwrapOr(func() int { return 4 }),
-			ClusterTimeSampling: unit.Sampling{
-				Unit:   cfg.Get(config, "Monitoring", "Cluster", "TimeUnit").UnwrapOr(func() string { return unit.Year }),
-				Period: cfg.GetInt(config, "Monitoring", "Cluster", "TimePeriod").UnwrapOr(func() int { return 1 }),
-			},
+			FloorZoom: cfg.GetInt(config, "Monitoring", "FloorZoom").UnwrapOr(func() int { return 11 }),
 		},
-		polMapRepo: polMapRepo,
+		pollutionRepo: pollutionRepository,
 	}
 }

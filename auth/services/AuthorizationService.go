@@ -3,6 +3,7 @@ package services
 import (
 	"github.com/gpabois/cougnat/auth/models"
 	"github.com/gpabois/cougnat/auth/repositories"
+	"github.com/gpabois/cougnat/core/option"
 	"github.com/gpabois/cougnat/core/result"
 )
 
@@ -25,7 +26,7 @@ type IAuthorizationService interface {
 	RemovePermissions(role models.ActorID, perms []string, object models.ObjectID) result.Result[bool]
 
 	// Check if the subject has the permission on the object
-	HasPermission(subject models.ActorID, perm string, object models.ObjectID) result.Result[bool]
+	HasPermission(subject models.ActorID, perm string, object option.Option[models.ObjectID]) result.Result[bool]
 }
 
 type ImplAuthorizationService struct {

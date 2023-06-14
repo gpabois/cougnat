@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/gpabois/cougnat/core/geojson"
+	"github.com/gpabois/cougnat/core/ops"
 	"github.com/gpabois/cougnat/core/result"
 )
 
@@ -11,6 +12,46 @@ type TileIndex struct {
 	X int
 	Y int
 	Z int
+}
+
+func (tile TileIndex) Right() TileIndex {
+	return TileIndex{
+		X: tile.X + 1,
+		Y: tile.Y,
+		Z: tile.Z,
+	}
+}
+
+func (tile TileIndex) Left() TileIndex {
+	return TileIndex{
+		X: tile.X - 1,
+		Y: tile.Y,
+		Z: tile.Z,
+	}
+}
+
+func (tile TileIndex) Up() TileIndex {
+	return TileIndex{
+		X: tile.X,
+		Y: tile.Y - 1,
+		Z: tile.Z,
+	}
+}
+
+func (tile TileIndex) Down() TileIndex {
+	return TileIndex{
+		X: tile.X,
+		Y: tile.Y + 1,
+		Z: tile.Z,
+	}
+}
+
+func (tile TileIndex) UpLeft() TileIndex {
+	return tile.Up().Left()
+}
+
+func (tile TileIndex) DownRight() TileIndex {
+	return tile.Down().Right()
 }
 
 func (tile TileIndex) ZoomOut(out int) TileIndex {
@@ -21,12 +62,19 @@ func (tile TileIndex) ZoomOut(out int) TileIndex {
 	}
 }
 
-func (tile TileIndex) ZoomIn(out int) TileIndex {
+func (tile TileIndex) ZoomIn(in int) TileIndex {
 	return TileIndex{
-		X: int(float64(tile.X) * math.Pow(2.0, float64(out))),
-		Y: int(float64(tile.Y) * math.Pow(2.0, float64(out))),
-		Z: tile.Z - out,
+		X: int(float64(tile.X) * math.Pow(2.0, float64(in))),
+		Y: int(float64(tile.Y) * math.Pow(2.0, float64(in))),
+		Z: tile.Z + in,
 	}
+}
+
+func (tile TileIndex) Upscale(in int) TileBounds {
+	upLeft := tile.ZoomIn(4)
+	downRight := tile.DownRight().ZoomIn(4).UpLeft()
+
+	return Bounds(upLeft, downRight)
 }
 
 func TileIndexFromLatLng(lat float64, lng float64, zoom int) TileIndex {
@@ -59,4 +107,48 @@ func TileIndexFromGeometry(geometry geojson.Geometry, zoom int) result.Result[Ti
 	lat := geometry.Coordinates[1]
 
 	return result.Success(TileIndexFromLatLng(lat, lng, zoom))
+}
+
+type TileBounds struct {
+	UpLeft    TileIndex
+	DownRight TileIndex
+}
+
+func Bounds(upLeft TileIndex, downRight TileIndex) TileBounds {
+	return TileBounds{
+		UpLeft:    upLeft,
+		DownRight: downRight,
+	}
+}
+
+func (bounds TileBounds) DX() int {
+	return bounds.MaxX() - bounds.MinX()
+}
+
+func (bounds TileBounds) DY() int {
+	return bounds.MaxY() - bounds.MinY()
+}
+
+func (bounds TileBounds) MinX() int {
+	return ops.Min(bounds.UpLeft.X, bounds.DownRight.X)
+}
+
+func (bounds TileBounds) MinY() int {
+	return ops.Min(bounds.UpLeft.Y, bounds.DownRight.Y)
+}
+
+func (bounds TileBounds) MaxX() int {
+	return ops.Max(bounds.UpLeft.X, bounds.DownRight.X)
+}
+
+func (bounds TileBounds) MaxY() int {
+	return ops.Max(bounds.UpLeft.Y, bounds.DownRight.Y)
+}
+
+func (bounds TileBounds) MaxZ() int {
+	return ops.Max(bounds.UpLeft.Z, bounds.DownRight.Z)
+}
+
+func (bounds TileBounds) MinZ() int {
+	return ops.Min(bounds.UpLeft.Z, bounds.DownRight.Z)
 }

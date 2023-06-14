@@ -5,10 +5,13 @@ import (
 
 	"github.com/gpabois/cougnat/core/collection"
 	"github.com/gpabois/cougnat/core/iter"
+	"github.com/gpabois/cougnat/core/ops"
 	"github.com/gpabois/cougnat/core/unit"
 	"golang.org/x/exp/constraints"
 	"golang.org/x/exp/slices"
 )
+
+type TimeInterval = ops.Interval[int]
 
 type Number interface {
 	constraints.Integer | constraints.Float

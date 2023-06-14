@@ -6,6 +6,19 @@ type Number interface {
 	int | float32 | float64
 }
 
+type Interval[T constraints.Ordered] struct {
+	begin T
+	end   T
+}
+
+func (itv Interval[T]) Max() T {
+	return Max(itv.begin, itv.end)
+}
+
+func (itv Interval[T]) Min() T {
+	return Min(itv.begin, itv.end)
+}
+
 func Add[T Number](values ...T) T {
 	var acc T
 	for _, value := range values {

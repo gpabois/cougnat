@@ -3,6 +3,7 @@ package repositories
 import (
 	"github.com/gpabois/cougnat/core/result"
 	slippy_map "github.com/gpabois/cougnat/core/slippy-map"
+	time_serie "github.com/gpabois/cougnat/core/time-serie"
 	"github.com/gpabois/cougnat/core/unit"
 	"github.com/gpabois/cougnat/monitoring/models"
 	reportingModels "github.com/gpabois/cougnat/reporting/models"
@@ -18,48 +19,39 @@ type IncPollutionCommand struct {
 }
 
 type DecPollutionCommand struct {
-	// The area (sharding key)
-	clusterIndex models.TimeTileIndex
-	// The tile
+	// The tile coordinates
 	tileIndex models.TimeTileIndex
 	// The pollution data
 	report reportingModels.Report
 }
 
-func NewIncPollutionCommand(cluster models.TimeTileIndex, tile models.TimeTileIndex, report reportingModels.Report) IncPollutionCommand {
+func NewIncPollutionCommand(tile models.TimeTileIndex, report reportingModels.Report) IncPollutionCommand {
 	return IncPollutionCommand{
-		ClusterIndex: cluster,
-		TileIndex:    tile,
-		Report:       report,
+		TileIndex: tile,
+		Report:    report,
 	}
 }
 
 func GenIncPollutionCommands(
 	report reportingModels.Report,
-	clusterZoom int,
-	clusterTimeSampling unit.Sampling,
-	tileSamplingZoom int,
-	tileTimeSampling unit.Sampling,
+	ceilZoom int,
+	floorZoom int,
+	timeSampling unit.Sampling,
 ) result.Result[[]IncPollutionCommand] {
 	commands := []IncPollutionCommand{}
 	loc := report.Location.Geometry
 
-	areaIndexRes := slippy_map.TileIndexFromGeometry(loc, clusterZoom)
-	if areaIndexRes.HasFailed() {
-		return result.Failed[[]IncPollutionCommand](areaIndexRes.UnwrapError())
-	}
-	areaIndex := areaIndexRes.Expect()
-	clusterIndex := models.GetTimeTileIndex(areaIndex, report.ReportedAt, clusterTimeSampling)
+	for zoom := floorZoom; zoom >= ceilZoom; zoom-- {
+		tileIndexResult := slippy_map.TileIndexFromGeometry(loc, zoom)
 
-	for zoom := tileSamplingZoom; zoom >= clusterZoom; zoom-- {
-		tileIndexRes := slippy_map.TileIndexFromGeometry(loc, zoom)
-		if tileIndexRes.HasFailed() {
-			return result.Failed[[]IncPollutionCommand](tileIndexRes.UnwrapError())
+		if tileIndexResult.HasFailed() {
+			return result.Failed[[]IncPollutionCommand](tileIndexResult.UnwrapError())
 		}
-		tileIndex := tileIndexRes.Expect()
-		timeTileIndex := models.GetTimeTileIndex(tileIndex, report.ReportedAt, tileTimeSampling)
 
-		commands = append(commands, NewIncPollutionCommand(clusterIndex, timeTileIndex, report))
+		tileIndex := tileIndexResult.Expect()
+		timeTileIndex := models.GetTimeTileIndex(tileIndex, report.ReportedAt, timeSampling)
+
+		commands = append(commands, NewIncPollutionCommand(timeTileIndex, report))
 	}
 
 	return result.Success(commands)
@@ -69,5 +61,5 @@ func GenIncPollutionCommands(
 type IPollutionRepository interface {
 	IncPollutionTileMany(commands []IncPollutionCommand) result.Result[bool]
 	DecPollutionTileMany(index models.TimeTileIndex, reportType reportingModels.ReportType) result.Result[bool]
-	GetPollutionTimeSerie(upperLeft slippy_map.TileIndex, lowerRight slippy_map.TileIndex, beginTime int, endTime int) result.Result[models.PollutionTimeSerie]
+	GetPollutionTiles(tileBounds slippy_map.TileBounds, timeBounds time_serie.TimeInterval) result.Result[models.PollutionTileCollection]
 }

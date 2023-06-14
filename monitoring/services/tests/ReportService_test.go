@@ -18,9 +18,9 @@ import (
 func Test_ReportService_HandleNewReport_Success(t *testing.T) {
 	container := dig.New()
 
-	mockedPolMapRepo := mockedRepos.NewIPolMapRepository(t)
+	mockedPolMapRepo := mockedRepos.NewIPollutionRepository(t)
 	// Provide the PolMap Repository
-	container.Provide(func() repositories.IPolMapRepository {
+	container.Provide(func() repositories.IPollutionRepository {
 		return mockedPolMapRepo
 	})
 
@@ -39,15 +39,11 @@ func Test_ReportService_HandleNewReport_Success(t *testing.T) {
 	container.Provide(func() *cfg.ConfigMap {
 		return &cfg.ConfigMap{
 			"Monitoring": cfg.ConfigMap{
-				"TileSampling": cfg.ConfigMap{
-					"Zoom":       "6",
-					"TimeUnit":   unit.Minute,
-					"TimePeriod": "1",
-				},
-				"Cluster": cfg.ConfigMap{
-					"Zoom":       "4",
-					"TimeUnit":   unit.Year,
-					"TimePeriod": "1",
+				"CeilZoom":  "6",
+				"FloorZoom": "4",
+				"TimeSamplig": cfg.ConfigMap{
+					"Unit":   unit.Minute,
+					"Period": "1",
 				},
 			},
 		}
