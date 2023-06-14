@@ -55,9 +55,21 @@ func (col PollutionTileCollection) Sum() PollutionData {
 	return iter.Reduce(col.IterData(), PollutionDataSum, PollutionData{})
 }
 
+func (col PollutionTileCollection) ReduceSum() PollutionTile {
+	tileID := col[0].ID
+	intensity := iter.Reduce(col.IterData(), func(acc PollutionIntensity, data PollutionData) { return PollutionDataReduceSum(data) }, PollutionIntensity{})
+
+	return PollutionTile{
+		ID: tileID,
+		Data: PollutionData{
+			"$all": intensity,
+		},
+	}
+}
+
 func (col PollutionTileCollection) IntoPollutionMatrix(bounds slippy_map.TileBounds, aggregation func(tiles PollutionTileCollection) PollutionTile) PollutionMatrix {
 	rowLength := bounds.DX()
-	columnLength := bounds.DX()
+	columnLength := bounds.DY()
 
 	// Group tiles by TileIndex
 	groups := iter.Group[PollutionTileCollection](col.Iter(), func(tile PollutionTile) slippy_map.TileIndex { return tile.ID.TileID })
@@ -124,6 +136,10 @@ func (data PollutionData) AddIntensity(typ string, intensity PollutionIntensity)
 
 	data[typ] = inten
 	return data
+}
+
+func PollutionDataReduceSum(data PollutionData) PollutionIntensity {
+	return data.ReduceSum()
 }
 
 // Reduce the pollution data into a single pollution intensity

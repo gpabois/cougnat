@@ -50,7 +50,8 @@ func (svc *PollutionService) GetTile(ctx context.Context, args GetTileArgs) resu
 	tile := image.NewRGBA(image.Rect(0, 0, 256, 256))
 	tileBounds := args.TileIndex.Upscale(4)
 
-	aggFunc := GetAggregationFunc(args.AggregationOperation.UnwrapOr(func() string { return "add>all" }))
+	aggFunc := GetAggregationFunc(args.AggregationOperation.UnwrapOr(func() string { return "reduce_sum" }))
+	
 	matrixResult := result.Map(
 		svc.pollutionRepo.GetPollutionTiles(tileBounds, args.TimeBounds),
 		func(tiles models.PollutionTileCollection) models.PollutionMatrix {
