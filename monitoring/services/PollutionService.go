@@ -23,25 +23,11 @@ func GetAggregationFunc(mode string) AggregationFunc {
 	return func(tiles models.PollutionTileCollection) models.PollutionTile {
 		tileID := tiles[0].ID
 
-		tileIter := 
-		
-		intensity := iter.Reduce(
-			iter.Map(iter.IterSlice(&tiles), 
-				func(tile models.PollutionTile) models.PollutionData {
-					return tile.Data
-				},
-			),
-			func(acc models.PollutionIntensity, data models.PollutionData) models.PollutionIntensity {
-
-			},
-			models.PollutionIntensity{},
-		)
-
 		return models.PollutionTile{
 			ID: tileID,
-			Data: map[string] {
-				"$all": intensity
-			}
+			Data: models.PollutionData{}.Sum(iter.Map(tiles.IterData(), func(data models.PollutionData) models.PollutionData {
+				return data.ReduceSum()
+			})),
 		}
 	}
 }
@@ -51,10 +37,10 @@ func (svc *PollutionService) GetTile(ctx context.Context, args GetTileArgs) resu
 	tileBounds := args.TileIndex.Upscale(4)
 
 	aggFunc := GetAggregationFunc(args.AggregationOperation.UnwrapOr(func() string { return "reduce_sum" }))
-	
+
 	matrixResult := result.Map(
 		svc.pollutionRepo.GetPollutionTiles(tileBounds, args.TimeBounds),
-		func(tiles models.PollutionTileCollection) models.PollutionMatrix {
+		func(tiles models.PollutionTileCollection) models.PollutionTileCollection {
 			return tiles.IntoPollutionMatrix(tileBounds, aggFunc)
 		},
 	)
@@ -63,10 +49,12 @@ func (svc *PollutionService) GetTile(ctx context.Context, args GetTileArgs) resu
 		return result.Result[[]byte]{}.Failed(matrixResult.UnwrapError())
 	}
 
-	matrix := matrixResult.Expect()
-
 	dx := 256.0 / float64(tileBounds.DX())
 	dy := 256.0 / float64(tileBounds.DY())
+
+	for _, tile := range matrixResult.Expect() {
+
+	}
 
 	buffer := bytes.NewBuffer(make([]byte, 256*256))
 	err := png.Encode(buffer, tile)
