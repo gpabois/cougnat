@@ -10,15 +10,19 @@ import (
 	models "github.com/gpabois/cougnat/reporting/models"
 )
 
-func RandomReportNature() string {
-	return "random"
+func RandomReportType() models.ReportType {
+	return models.ReportType{
+		Name:   "random_name",
+		Label:  "Random name",
+		Nature: "smell",
+	}
 }
 
 func RandomAnonymousReport() models.Report {
 	return models.Report{
 		Owner:      option.Some(auth_fixtures.RandomAnonymousID()),
 		Location:   geo_fixtures.RandomPoint(option.None[geojson.FeatureProperties]()),
-		Nature:     RandomReportNature(),
+		Type:       RandomReportType(),
 		Rate:       5,
 		ReportedAt: time.Now(),
 	}

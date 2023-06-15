@@ -17,9 +17,9 @@ import (
 
 // Implementation
 type ReportService struct {
-	repo   repos.ReportRepository
-	authz  auth_svcs.AuthorizationService
-	events ev.IReportEventReceiver
+	repo   repos.IReportRepository
+	authz  auth_svcs.IAuthorizationService
+	events ev.IReportEventEmitter
 }
 
 // Report any annoyances.
@@ -43,12 +43,15 @@ func (svc *ReportService) Report(ctx context.Context, report models.Report) resu
 			// Send an event
 			svc.events.OnNewReport(report)
 
+			// Assert object id
+			report.ObjectID().Expect()
+
 			// Create an ACL for the Owner, if any
 			if report.Owner.IsSome() {
 				svc.authz.CreateAndAddRoleTo(
 					ownerID.Expect(),
 					"owner",
-					report.ObjectID().Expect(),
+					report.ObjectID(),
 					[]string{"read", "write"},
 				)
 			}
@@ -63,7 +66,7 @@ func (svc *ReportService) DeleteReport(ctx context.Context, reportID models.Repo
 			// Return an access control to be checked
 			Chain(result.ChainFromAny(func(currentActorID auth_models.ActorID) result.Result[auth_models.AccessControl] {
 				objectID := models.ReportObjectID(reportID)
-				return result.Success(auth_models.NewAccessControl(currentActorID, "write", objectID))
+				return result.Success(auth_models.NewAccessControl(currentActorID, "write", option.Some(objectID)))
 			})).
 			// Check if has the permission
 			Chain(result.ChainFromAny(guards.CheckAccessControl(svc.authz))).
@@ -77,11 +80,10 @@ func (svc *ReportService) DeleteReport(ctx context.Context, reportID models.Repo
 			})))
 }
 
-// Provide the report service
-func ProvideReportService(repo repos.ReportRepository, authz auth_svcs.AuthorizationService, evrecv ev.IReportEventReceiver) ReportService {
+func ProvideReportService(repo repos.IReportRepository, authz auth_svcs.IAuthorizationService, events ev.IReportEventEmitter) IReportService {
 	return &ReportService{
 		repo,
 		authz,
-		evrecv,
+		events,
 	}
 }

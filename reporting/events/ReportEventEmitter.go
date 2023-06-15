@@ -13,7 +13,7 @@ type DeletedReportEvent struct {
 	ReportID models.ReportID `serde:"report_id"`
 }
 
-//go:generate mockery --name ReportEventEmitter
+//go:generate mockery
 type IReportEventEmitter interface {
 	OnNewReport(report models.Report) result.Result[bool]
 	OnDeletedReport(report models.ReportID) result.Result[bool]

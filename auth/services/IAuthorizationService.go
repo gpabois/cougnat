@@ -7,14 +7,14 @@ import (
 	"github.com/gpabois/cougnat/core/result"
 )
 
-//go:generate mockery --name AuthorizationService
+//go:generate mockery
 type IAuthorizationService interface {
 	// Create a role and add it to the subject.
 	// Equivalent to CreateRole + AddRoleTo
-	CreateAndAddRoleTo(subject models.ActorID, roleName string, object models.ObjectID, permissions []string)
+	CreateAndAddRoleTo(subject models.ActorID, roleName string, object option.Option[models.ObjectID], permissions []string) result.Result[bool]
 
 	// Manage roles
-	CreateRole(roleName string, object models.ObjectID, permissions []string) result.Result[models.RoleID]
+	CreateRole(roleName string, object option.Option[models.ObjectID], permissions []string) result.Result[models.RoleID]
 	DeleteRole(roleID models.RoleID) result.Result[bool]
 	AddRoleTo(subject models.ActorID, roleID models.RoleID) result.Result[bool]
 	RemoveRoleFrom(subject models.ActorID, roleID models.RoleID) result.Result[bool]
@@ -29,11 +29,11 @@ type IAuthorizationService interface {
 	HasPermission(subject models.ActorID, perm string, object option.Option[models.ObjectID]) result.Result[bool]
 }
 
-type ImplAuthorizationService struct {
+type AuthorizationService struct {
 	roleRepo repositories.RoleRepository
 }
 
-func (authz ImplAuthorizationService) HasPermission(subject models.ActorID, perm string, object models.ObjectID) result.Result[bool] {
+func (authz *AuthorizationService) HasPermission(subject models.ActorID, perm string, object models.ObjectID) result.Result[bool] {
 	authz.roleRepo.ExistWithSPO(subject, perm, object)
 	// If it's an user, we can check if any group has the permission
 	if subject.IsUser() {

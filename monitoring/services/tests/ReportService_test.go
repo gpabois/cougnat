@@ -18,20 +18,16 @@ import (
 func Test_ReportService_HandleNewReport_Success(t *testing.T) {
 	container := dig.New()
 
-	mockedPolMapRepo := mockedRepos.NewIPollutionRepository(t)
-	// Provide the PolMap Repository
+	// Provide a Mocked Pollution Repository
+	pollutionRepo := mockedRepos.NewIPollutionRepository(t)
 	container.Provide(func() repositories.IPollutionRepository {
-		return mockedPolMapRepo
+		return pollutionRepo
 	})
 
 	// Provide Config Map
-	const clusterZoom = 4
-	clusterTimeSampling := unit.Sampling{
-		Period: 1,
-		Unit:   unit.Year,
-	}
-	const tileSamplingZoom = 5
-	tileTimeSampling := unit.Sampling{
+	const ceilZoom = 4
+	const floorZoom = 5
+	timeSampling := unit.Sampling{
 		Period: 1,
 		Unit:   unit.Minute,
 	}
@@ -60,8 +56,8 @@ func Test_ReportService_HandleNewReport_Success(t *testing.T) {
 		report.ReportedAt = now
 
 		// Prepare the mocked repository
-		expectedCommands := repositories.GenIncPollutionCommands(report, clusterZoom, clusterTimeSampling, tileSamplingZoom, tileTimeSampling).Expect()
-		mockedPolMapRepo.EXPECT().IncPollutionTileMany(expectedCommands).Return(result.Success(true))
+		expectedCommands := repositories.GenIncPollutionCommands(report, ceilZoom, floorZoom, timeSampling).Expect()
+		pollutionRepo.EXPECT().IncPollutionTileMany(expectedCommands).Return(result.Success(true))
 
 		// Call the HandleNewReport function
 		res := svc.HandleNewReport(report)

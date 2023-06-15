@@ -12,7 +12,6 @@ type ReportID = string
 
 type ReportType struct {
 	Name   string `serde:"name"`
-	Type   string `serde:"type"`
 	Label  string `serde:"label"`
 	Nature string `serde:"nature"`
 }
@@ -27,10 +26,12 @@ type Report struct {
 	ReportedAt time.Time                   `serde:"reported_at"`
 }
 
+// Return the ObjectID of the Report
 func (report Report) ObjectID() option.Option[auth.ObjectID] {
 	return option.Map(report.ID, ReportObjectID)
 }
 
+// Transform the ReportID into an ObjectID
 func ReportObjectID(reportID ReportID) auth.ObjectID {
 	return auth.NewObjectID("report", reportID)
 }

@@ -7,7 +7,6 @@ import (
 	"github.com/gpabois/cougnat/core/result"
 	slippy_map "github.com/gpabois/cougnat/core/slippy-map"
 	time_serie "github.com/gpabois/cougnat/core/time-serie"
-	"github.com/gpabois/cougnat/monitoring/models"
 )
 
 type GetPollutionMatrixArgs struct {
@@ -28,5 +27,6 @@ type GetTileArgs struct {
 
 //go:generate mockery
 type IPollutionService interface {
-	GetPollutionMatrix(ctx context.Context, args GetPollutionMatrixArgs) result.Result[models.PollutionMatrix]
+	// Generate a tile image for a slippy-map
+	GetTile(ctx context.Context, args GetTileArgs) result.Result[[]byte]
 }

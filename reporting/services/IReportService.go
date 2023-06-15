@@ -7,7 +7,7 @@ import (
 	"github.com/gpabois/cougnat/reporting/models"
 )
 
-//go:generate mockery --name ReportService
+//go:generate mockery
 type IReportService interface {
 	Report(ctx context.Context, report models.Report) result.Result[models.Report]
 	DeleteReport(ctx context.Context, reportID models.ReportID) result.Result[bool]

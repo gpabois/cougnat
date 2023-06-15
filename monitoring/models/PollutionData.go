@@ -28,6 +28,10 @@ func (data PollutionData) Add(typ string, intensity PollutionIntensity) Pollutio
 	return data
 }
 
+func (data PollutionData) Get(typ string) PollutionIntensity {
+	return data[typ]
+}
+
 func PollutionDataReduceSum(data PollutionData) PollutionData {
 	return data.ReduceSum()
 }
