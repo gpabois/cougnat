@@ -26,6 +26,7 @@ func (repo ReportRepository) Create(report models.Report) result.Result[models.R
 
 func (repo ReportRepository) GetById(id models.ReportID) result.Result[option.Option[models.Report]] {
 	objId, err := primitive.ObjectIDFromHex(id)
+
 	if err == nil {
 		return result.Failed[option.Option[models.Report]](err)
 	}

@@ -329,6 +329,48 @@ func (_c *IAuthorizationService_HasPermission_Call) RunAndReturn(run func(models
 	return _c
 }
 
+// RemoveByObjectID provides a mock function with given fields: objectID
+func (_m *IAuthorizationService) RemoveByObjectID(objectID models.ObjectID) result.Result[bool] {
+	ret := _m.Called(objectID)
+
+	var r0 result.Result[bool]
+	if rf, ok := ret.Get(0).(func(models.ObjectID) result.Result[bool]); ok {
+		r0 = rf(objectID)
+	} else {
+		r0 = ret.Get(0).(result.Result[bool])
+	}
+
+	return r0
+}
+
+// IAuthorizationService_RemoveByObjectID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveByObjectID'
+type IAuthorizationService_RemoveByObjectID_Call struct {
+	*mock.Call
+}
+
+// RemoveByObjectID is a helper method to define mock.On call
+//   - objectID models.ObjectID
+func (_e *IAuthorizationService_Expecter) RemoveByObjectID(objectID interface{}) *IAuthorizationService_RemoveByObjectID_Call {
+	return &IAuthorizationService_RemoveByObjectID_Call{Call: _e.mock.On("RemoveByObjectID", objectID)}
+}
+
+func (_c *IAuthorizationService_RemoveByObjectID_Call) Run(run func(objectID models.ObjectID)) *IAuthorizationService_RemoveByObjectID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(models.ObjectID))
+	})
+	return _c
+}
+
+func (_c *IAuthorizationService_RemoveByObjectID_Call) Return(_a0 result.Result[bool]) *IAuthorizationService_RemoveByObjectID_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *IAuthorizationService_RemoveByObjectID_Call) RunAndReturn(run func(models.ObjectID) result.Result[bool]) *IAuthorizationService_RemoveByObjectID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // RemovePermission provides a mock function with given fields: role, perm, object
 func (_m *IAuthorizationService) RemovePermission(role models.ActorID, perm string, object models.ObjectID) result.Result[bool] {
 	ret := _m.Called(role, perm, object)

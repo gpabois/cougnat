@@ -6,6 +6,7 @@ import (
 	auth "github.com/gpabois/cougnat/auth/models"
 	geo "github.com/gpabois/cougnat/core/geojson"
 	"github.com/gpabois/cougnat/core/option"
+	"github.com/jinzhu/copier"
 )
 
 type ReportID = string
@@ -24,6 +25,11 @@ type Report struct {
 	Type       ReportType                  `serde:"type"`
 	Rate       int                         `serde:"rate"`
 	ReportedAt time.Time                   `serde:"reported_at"`
+}
+
+func (report Report) From(attr any) Report {
+	copier.Copy(&report, attr)
+	return report
 }
 
 // Return the ObjectID of the Report

@@ -50,22 +50,28 @@ func generateMockedReportServiceDependencies(t *testing.T, container *dig.Contai
 	}
 }
 
+func setupReportServiceTest(t *testing.T) *dig.Container {
+	container := dig.New()
+	// Provide mocked deps for the report service
+	deps := generateMockedReportServiceDependencies(t, container)
+	// Provide the report service
+	container.Provide(func() mockedReportDependencies { return deps })
+	container.Provide(services.ProvideReportService)
+	//
+	return container
+}
+
 // Test a successful use of Report Function of the Report Service
 // The function must :
 // 1 - Store the report, calls IReportRepository.Create
 // 2 - Create an owner role with [read, write] permissions, and add the role to the requester (bind to CurrentActorID)
 // 3 - Emits a NewReport event by calling the IReportEmitter.OnNewReport function
 func Test_ReportService_Report_Success(t *testing.T) {
-	container := dig.New()
-
-	// Provide mocked deps for the report service
-	deps := generateMockedReportServiceDependencies(t, container)
-
-	// Provide the report service
-	container.Provide(services.ProvideReportService)
+	// Setup the test
+	container := setupReportServiceTest(t)
 
 	// Run the test
-	err := container.Invoke(func(svc services.IReportService) {
+	err := container.Invoke(func(svc services.IReportService, deps mockedReportDependencies) {
 		// Create fixtures
 		report := fixtures.RandomAnonymousReport()
 		reportID, _ := rand.RandomHex(20)
@@ -109,6 +115,39 @@ func Test_ReportService_Report_Success(t *testing.T) {
 
 		// Should have sent OnNewReport event to the receiver
 		deps.reportEventEmitter.AssertCalled(t, "OnNewReport", expectedReport)
+	})
+	assert.Nil(t, err, err)
+}
+
+func Test_ReportService_DeleteReport_Success(t *testing.T) {
+	// Setup the test
+	container := setupReportServiceTest(t)
+	// Run the test
+	err := container.Invoke(func(svc services.IReportService, deps mockedReportDependencies) {
+		// Create a report ID
+		reportID, _ := rand.RandomHex(20)
+		objectID := models.ReportObjectID(reportID)
+
+		// Requester
+		requesterID := auth_fixtures.RandomAnonymousID()
+
+		// Set the requester
+		ctx := auth_utils.SetCurrentActorID(context.Background(), requesterID)
+
+		// Setup the mocked functions
+		deps.authz.EXPECT().HasPermission(requesterID, "write", option.Some(objectID)).Return(result.Success(true))
+		deps.authz.EXPECT().RemoveByObjectID(objectID).Return(result.Success(true))
+		deps.reportEventEmitter.EXPECT().OnDeletedReport(reportID).Return(result.Success(true))
+		deps.reportRepo.EXPECT().Delete(reportID).Return(result.Success(true))
+
+		res := svc.DeleteReport(ctx, reportID)
+		assert.True(t, res.IsSuccess(), res.UnwrapError())
+		assert.Equal(t, reportID, res.Expect())
+
+		deps.authz.AssertCalled(t, "HasPermission", requesterID, "write", option.Some(objectID))
+		deps.authz.AssertCalled(t, "RemoveByObjectID", objectID)
+		deps.reportEventEmitter.AssertCalled(t, "OnDeletedReport", reportID)
+		deps.reportRepo.AssertCalled(t, "Delete", reportID)
 	})
 	assert.Nil(t, err, err)
 }

@@ -27,3 +27,12 @@ func RandomAnonymousReport() models.Report {
 		ReportedAt: time.Now(),
 	}
 }
+
+func AsNewReport(report models.Report) models.Report {
+	return models.Report{
+		Location:   report.Location,
+		Type:       report.Type,
+		Rate:       report.Rate,
+		ReportedAt: report.ReportedAt,
+	}
+}

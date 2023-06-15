@@ -128,7 +128,9 @@ func denormaliseByReflectType(typ reflect.Type, val any) result.Result[any] {
 				return result.Failed[any](res.UnwrapError())
 			}
 			// Add
-			slc.Elem().Set(reflect.Append(slc.Elem(), reflect.ValueOf(res.Expect())))
+			if slc.Elem().IsValid() {
+				slc.Elem().Set(reflect.Append(slc.Elem(), reflect.ValueOf(res.Expect())))
+			}
 		}
 
 		// Denormalise the array
@@ -192,9 +194,10 @@ func denormaliseByReflectType(typ reflect.Type, val any) result.Result[any] {
 			}
 
 			// Set the value
-			field.Set(reflect.ValueOf(res.Expect()))
+			if field.IsValid() {
+				field.Set(reflect.ValueOf(res.Expect()))
+			}
 		}
-
 	}
 
 	return result.Success(value.Interface())

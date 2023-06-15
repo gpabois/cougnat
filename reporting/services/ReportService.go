@@ -59,25 +59,35 @@ func (svc *ReportService) Report(ctx context.Context, report models.Report) resu
 }
 
 // Delete a report, if the actor has the right to do so.
-func (svc *ReportService) DeleteReport(ctx context.Context, reportID models.ReportID) result.Result[bool] {
-	return result.Into[bool](
-		// Check if authenticated
-		guards.IsAuthenticated(ctx).ToAny().
-			// Return an access control to be checked
-			Chain(result.ChainFromAny(func(currentActorID auth_models.ActorID) result.Result[auth_models.AccessControl] {
-				objectID := models.ReportObjectID(reportID)
-				return result.Success(auth_models.NewAccessControl(currentActorID, "write", option.Some(objectID)))
-			})).
-			// Check if has the permission
-			Chain(result.ChainFromAny(guards.CheckAccessControl(svc.authz))).
-			// Execute the deletion
-			Chain(result.ChainFromAny(func(_ bool) result.Result[bool] {
-				return svc.repo.Delete(reportID)
-			})).
-			// Send an event
-			Then(result.ThenFromAny(func(deleted bool) {
-				svc.events.OnDeletedReport(reportID)
-			})))
+func (svc *ReportService) DeleteReport(ctx context.Context, reportID models.ReportID) result.Result[models.ReportID] {
+	// Check if the requester is authenticated
+	currentActorIDRes := guards.IsAuthenticated(ctx)
+	if currentActorIDRes.HasFailed() {
+		return result.Result[string]{}.Failed(currentActorIDRes.UnwrapError())
+	}
+	currentActorID := currentActorIDRes.Expect()
+	objectID := models.ReportObjectID(reportID)
+
+	// Check if the requester has the permission to do so
+	acl := auth_models.NewAccessControl(currentActorID, "write", option.Some(objectID))
+	aclRes := guards.CheckAccessControl(svc.authz)(acl)
+	if aclRes.HasFailed() {
+		return result.Result[string]{}.Failed(aclRes.UnwrapError())
+	}
+
+	// Delete the report
+	deleteRes := svc.repo.Delete(reportID)
+	if deleteRes.HasFailed() {
+		return result.Result[string]{}.Failed(deleteRes.UnwrapError())
+	}
+	// Clean the ACL
+	svc.authz.RemoveByObjectID(objectID)
+
+	// Send an event
+	svc.events.OnDeletedReport(reportID)
+
+	// Return successful
+	return result.Success(reportID)
 }
 
 func ProvideReportService(repo repos.IReportRepository, authz auth_svcs.IAuthorizationService, events ev.IReportEventEmitter) IReportService {

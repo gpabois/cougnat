@@ -3,12 +3,15 @@ module github.com/gpabois/cougnat/reporting
 go 1.20
 
 replace github.com/gpabois/cougnat/core => ../core
+
 replace github.com/gpabois/cougnat/auth => ../auth
 
 require (
 	github.com/go-kit/kit v0.12.0
+	github.com/gorilla/mux v1.8.0
 	github.com/gpabois/cougnat/auth v0.0.0-00010101000000-000000000000
 	github.com/gpabois/cougnat/core v0.0.0-00010101000000-000000000000
+	github.com/jinzhu/copier v0.3.5
 	github.com/stretchr/testify v1.8.0
 	go.mongodb.org/mongo-driver v1.11.6
 	go.uber.org/dig v1.17.0
@@ -17,6 +20,8 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/go-kit/log v0.2.0 // indirect
+	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/gopherjs/gopherjs v1.17.2 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect

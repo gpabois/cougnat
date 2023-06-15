@@ -12,6 +12,8 @@ type IAuthorizationService interface {
 	// Create a role and add it to the subject.
 	// Equivalent to CreateRole + AddRoleTo
 	CreateAndAddRoleTo(subject models.ActorID, roleName string, object option.Option[models.ObjectID], permissions []string) result.Result[bool]
+	// Quick operations
+	RemoveByObjectID(objectID models.ObjectID) result.Result[bool]
 
 	// Manage roles
 	CreateRole(roleName string, object option.Option[models.ObjectID], permissions []string) result.Result[models.RoleID]

@@ -6,7 +6,11 @@ import (
 	"github.com/gpabois/cougnat/core/option"
 )
 
-type ConfigMap = map[string]any
+type ConfigMap map[string]any
+
+func (c ConfigMap) Provide() ConfigMap {
+	return c
+}
 
 func GetInt(cfg *ConfigMap, path ...string) option.Option[int] {
 	return option.Chain(Get(cfg, path...), func(val string) option.Option[int] {

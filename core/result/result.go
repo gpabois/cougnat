@@ -17,6 +17,10 @@ type Result[T any] struct {
 	err   error
 }
 
+func (res Result[T]) Unwrap() (T, error) {
+	return res.inner, res.err
+}
+
 func (res Result[T]) Failed(err error) Result[T] {
 	return Failed[T](err)
 }
