@@ -55,7 +55,7 @@ func DrawPollutionTile(img *image.RGBA, tile models.PollutionTile, tileBounds sl
 	)
 
 	// Keep in range [0, 1]
-	t := ops.Bounds(1-float64(tile.Data.Get("$all").Weight), 0.0, 1.0)
+	t := ops.Bounds(1.0-float64(tile.Data.Get("$all").Weight), 0.0, 1.0)
 
 	// No values, we don't perform any operations
 	if t == 0.0 {

@@ -33,7 +33,84 @@ var PRIMARY_TYPES = []reflect.Kind{
 	reflect.Interface,
 }
 
-func normaliseByReflectType(val any) any {
+type Encoder interface {
+	WriteInt(value int)
+	WriteFloat32(value float32)
+	WriteBool(value bool)
+	WriteString(value string)
+	PushArray()
+	PushMap()
+	PushMapKey()
+	PushMapValue()
+	Pop()
+}
+
+func encode(enc Encoder, value reflect.Value) {
+
+}
+
+func encodeStruct(enc Encoder, value reflect.Value) {
+	typ := value.Type()
+	for i := 0; i < typ.NumField(); i++ {
+		fieldValue := value.Field(i)
+		fieldName := typ.Field(i).Name
+
+		marshalName, ok := typ.Field(i).Tag.Lookup("serde")
+		if ok {
+			fieldName = marshalName
+		}
+
+		if option.IsOption(fieldValue) {
+			optVal := fieldValue.Interface().(option.IOption)
+
+			// Don't set nil value
+			if optVal.IsNone() {
+				continue
+			}
+
+			enc.PushMapKey()
+			encode(enc, reflect.ValueOf(fieldName))
+			enc.Pop()
+
+			enc.PushMapValue()
+			encode(enc, reflect.ValueOf(optVal.Get()))
+			enc.Pop()
+		} else {
+			enc.PushMapKey()
+			encode(enc, reflect.ValueOf(fieldName))
+			enc.Pop()
+
+			enc.PushMapValue()
+			encode(enc, reflect.ValueOf(fieldValue))
+			enc.Pop()
+		}
+	}
+	enc.Pop()
+}
+
+func encodeMap(enc Encoder, value reflect.Value) {
+	enc.PushMap()
+	for _, mapKey := range value.MapKeys() {
+		enc.PushMapKey()
+		mapValue := value.MapIndex(mapKey)
+		encode(enc, mapKey)
+		enc.Pop()
+
+		enc.PushMapValue()
+		encode(enc, mapValue)
+		enc.Pop()
+	}
+	enc.Pop()
+}
+func encodeSlice(enc Encoder, value reflect.Value) {
+	enc.PushArray()
+	for i := 0; i < value.Len(); i++ {
+		encode(enc, value.Index(i))
+	}
+	enc.Pop()
+}
+
+func normalise(val any) any {
 	typ := reflect.ValueOf(val).Type()
 	valOf := reflect.ValueOf(val)
 
@@ -44,9 +121,19 @@ func normaliseByReflectType(val any) any {
 	if typ.Kind() == reflect.Slice {
 		slc := []any{}
 		for i := 0; i < valOf.Len(); i++ {
-			slc = append(slc, normaliseByReflectType(valOf.Index(i).Interface()))
+			slc = append(slc, normalise(valOf.Index(i).Interface()))
 		}
 		return any(slc)
+	}
+
+	if typ.Kind() == reflect.Map {
+		mapp := map[string]any{}
+
+		rmap := reflect.ValueOf(val)
+		for _, key := range rmap.MapKeys() {
+			mapp[key.String()] = normalise(rmap.MapIndex(key).Elem().Interface())
+		}
+		return any(mapp)
 	}
 
 	// We handle struct-based types
@@ -81,9 +168,9 @@ func normaliseByReflectType(val any) any {
 				continue
 			}
 
-			norm[fieldName] = normaliseByReflectType(optVal.Get())
+			norm[fieldName] = normalise(optVal.Get())
 		} else {
-			norm[fieldName] = normaliseByReflectType(fieldVal)
+			norm[fieldName] = normalise(fieldVal)
 		}
 	}
 
@@ -91,63 +178,10 @@ func normaliseByReflectType(val any) any {
 }
 
 func Normalise[T any](value T) any {
-	return normaliseByReflectType(value)
+	return normalise(value)
 }
 
-func denormaliseByReflectType(typ reflect.Type, val any) result.Result[any] {
-	// Primary type, easy !
-	if slices.Contains(PRIMARY_TYPES, typ.Kind()) {
-		switch typ.Kind() {
-		case reflect.Int64:
-		case reflect.Int32:
-		case reflect.Int16:
-		case reflect.Int8:
-		case reflect.Int:
-			integer := reflect.ValueOf(val).Int()
-			return result.Success[any](int(integer))
-		// Type is any we return it
-		case reflect.Interface:
-			return result.Success(val)
-		default:
-			return result.Success(val)
-		}
-	}
-
-	// Slice-based values, we need to denormalise each element.
-	if typ.Kind() == reflect.Slice || typ.Kind() == reflect.Array {
-		arrElType := typ.Elem()
-		elValues := reflect.ValueOf(val)
-
-		slc := reflect.New(reflect.SliceOf(arrElType))
-		//
-		for i := 0; i < elValues.Len(); i++ {
-			// Denormalise the element
-			res := denormaliseByReflectType(arrElType, elValues.Index(i).Interface())
-
-			if res.HasFailed() {
-				return result.Failed[any](res.UnwrapError())
-			}
-			// Add
-			if slc.Elem().IsValid() {
-				slc.Elem().Set(reflect.Append(slc.Elem(), reflect.ValueOf(res.Expect())))
-			}
-		}
-
-		// Denormalise the array
-		return result.Success(slc.Elem().Interface())
-	}
-
-	// We handle struct-based types
-	if typ.Kind() != reflect.Struct {
-		return result.Failed[any](errors.New(fmt.Sprintf("type %v cannot be denormalised", typ.Kind())))
-	}
-
-	norm, ok := val.(NormalisedStruct)
-
-	if !ok {
-		return result.Failed[any](errors.New(fmt.Sprintf("expecting a normalised struct got: %v", val)))
-	}
-
+func denormaliseStruct(typ reflect.Type, norm reflect.Value) result.Result[reflect.Value] {
 	// Instantiate a struct
 	value := reflect.New(typ).Elem()
 
@@ -160,55 +194,114 @@ func denormaliseByReflectType(typ reflect.Type, val any) result.Result[any] {
 		if ok {
 			fieldName = marshalName
 		}
-		normValue, ok := norm[fieldName]
+
+		normValue := norm.MapIndex(reflect.ValueOf(fieldName))
+		if normValue.IsValid() == false {
+			continue
+		}
+		normValue = normValue.Elem()
 
 		// Take care of optional values
-		if field.CanAddr() && option.IsMutableOption(field.Addr().Interface()) {
-			res := denormaliseByReflectType(field.Interface().(option.IOption).TypeOf(), normValue)
+		if field.CanAddr() && option.IsMutableOption(field.Addr().Interface()) && normValue.IsValid() {
+			res := denormalise(field.Interface().(option.IOption).TypeOf(), normValue)
 
 			if res.HasFailed() {
-				return result.Failed[any](res.UnwrapError())
+				return result.Failed[reflect.Value](res.UnwrapError())
 			}
 
-			resSet := field.
-				Addr().
-				Interface().(option.IMutableOption).
-				TrySet(res.Expect())
+			resSet := field.Addr().Interface().(option.IMutableOption).TrySet(res.Expect())
 
 			if resSet.HasFailed() {
-				return result.Failed[any](res.UnwrapError())
+				return result.Failed[reflect.Value](res.UnwrapError())
 			}
-		} else { // Manage the rest
-			if !ok {
-				continue
-			}
-
-			if !field.CanInterface() || !field.CanSet() {
-				continue
-			}
-
-			res := denormaliseByReflectType(fieldType, normValue)
-
+		} else if normValue.IsValid() { // Manage the rest
+			res := denormalise(fieldType, normValue)
 			if res.HasFailed() {
-				return result.Failed[any](res.UnwrapError())
+				return result.Failed[reflect.Value](res.UnwrapError())
 			}
 
 			// Set the value
 			if field.IsValid() {
-				field.Set(reflect.ValueOf(res.Expect()))
+				field.Set(res.Expect())
 			}
 		}
 	}
 
-	return result.Success(value.Interface())
+	return result.Success(value)
 }
 
-func DeNormalise[T any](val any) result.Result[T] {
+func denormaliseMap(typ reflect.Type, norm reflect.Value) result.Result[reflect.Value] {
+	//keyType := nval.Type().Key()
+	valType := typ.Elem()
+	val := reflect.New(reflect.MapOf(typ.Key(), typ.Elem()))
+
+	for _, key := range norm.MapKeys() {
+		field := norm.MapIndex(key)
+
+		denormRes := denormalise(valType, field.Elem())
+		if denormRes.HasFailed() {
+			return result.Result[reflect.Value]{}.Failed(denormRes.UnwrapError())
+		}
+
+		val.SetMapIndex(key, denormRes.Expect())
+	}
+
+	return result.Success(val.Elem())
+}
+
+func denormaliseSlice(typ reflect.Type, elValues reflect.Value) result.Result[reflect.Value] {
+	arrElType := typ.Elem()
+
+	slc := reflect.New(reflect.SliceOf(arrElType))
+	//
+	for i := 0; i < elValues.Len(); i++ {
+		// Denormalise the element
+		res := denormalise(arrElType, elValues.Index(i))
+
+		if res.HasFailed() {
+			return result.Failed[reflect.Value](res.UnwrapError())
+		}
+		// Add
+		if slc.Elem().IsValid() {
+			slc.Elem().Set(reflect.Append(slc.Elem(), reflect.ValueOf(res.Expect())))
+		}
+	}
+
+	// Denormalise the array
+	return result.Success(slc.Elem())
+}
+
+func denormalise(typ reflect.Type, val reflect.Value) result.Result[reflect.Value] {
+	// Primary type, easy !
+	if slices.Contains(PRIMARY_TYPES, typ.Kind()) {
+		return result.Success(val)
+	}
+
+	// Slice-based values, we need to denormalise each element.
+	if typ.Kind() == reflect.Slice || typ.Kind() == reflect.Array {
+		return denormaliseSlice(typ, val)
+	}
+
+	// Map-based values
+	if typ.Kind() == reflect.Map {
+		return denormaliseMap(typ, val)
+	}
+
+	// We handle struct-based types
+	if typ.Kind() != reflect.Struct {
+		return result.Failed[reflect.Value](errors.New(fmt.Sprintf("type %v cannot be denormalised", typ.Kind())))
+	}
+
+	return denormaliseStruct(typ, val)
+}
+
+func DeNormalise[T any](value any) result.Result[T] {
 	typ := reflect.TypeOf((*T)(nil)).Elem()
+	val := reflect.ValueOf(value)
 	return result.Map(
-		denormaliseByReflectType(typ, val),
-		func(val any) T {
-			return val.(T)
+		denormalise(typ, val),
+		func(val reflect.Value) T {
+			return val.Interface().(T)
 		},
 	)
 }
