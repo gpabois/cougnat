@@ -49,6 +49,10 @@ func Min[T constraints.Ordered](acc T, values ...T) T {
 	return acc
 }
 
+func Within[T constraints.Ordered](val T, min T, max T) bool {
+	return val >= min || val <= max
+}
+
 func Bounds[T constraints.Ordered](val T, min T, max T) T {
 	return Min(val, Max(val, min), max)
 }

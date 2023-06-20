@@ -33,83 +33,6 @@ var PRIMARY_TYPES = []reflect.Kind{
 	reflect.Interface,
 }
 
-type Encoder interface {
-	WriteInt(value int)
-	WriteFloat32(value float32)
-	WriteBool(value bool)
-	WriteString(value string)
-	PushArray()
-	PushMap()
-	PushMapKey()
-	PushMapValue()
-	Pop()
-}
-
-func encode(enc Encoder, value reflect.Value) {
-
-}
-
-func encodeStruct(enc Encoder, value reflect.Value) {
-	typ := value.Type()
-	for i := 0; i < typ.NumField(); i++ {
-		fieldValue := value.Field(i)
-		fieldName := typ.Field(i).Name
-
-		marshalName, ok := typ.Field(i).Tag.Lookup("serde")
-		if ok {
-			fieldName = marshalName
-		}
-
-		if option.IsOption(fieldValue) {
-			optVal := fieldValue.Interface().(option.IOption)
-
-			// Don't set nil value
-			if optVal.IsNone() {
-				continue
-			}
-
-			enc.PushMapKey()
-			encode(enc, reflect.ValueOf(fieldName))
-			enc.Pop()
-
-			enc.PushMapValue()
-			encode(enc, reflect.ValueOf(optVal.Get()))
-			enc.Pop()
-		} else {
-			enc.PushMapKey()
-			encode(enc, reflect.ValueOf(fieldName))
-			enc.Pop()
-
-			enc.PushMapValue()
-			encode(enc, reflect.ValueOf(fieldValue))
-			enc.Pop()
-		}
-	}
-	enc.Pop()
-}
-
-func encodeMap(enc Encoder, value reflect.Value) {
-	enc.PushMap()
-	for _, mapKey := range value.MapKeys() {
-		enc.PushMapKey()
-		mapValue := value.MapIndex(mapKey)
-		encode(enc, mapKey)
-		enc.Pop()
-
-		enc.PushMapValue()
-		encode(enc, mapValue)
-		enc.Pop()
-	}
-	enc.Pop()
-}
-func encodeSlice(enc Encoder, value reflect.Value) {
-	enc.PushArray()
-	for i := 0; i < value.Len(); i++ {
-		encode(enc, value.Index(i))
-	}
-	enc.Pop()
-}
-
 func normalise(val any) any {
 	typ := reflect.ValueOf(val).Type()
 	valOf := reflect.ValueOf(val)
@@ -239,6 +162,7 @@ func denormaliseMap(typ reflect.Type, norm reflect.Value) result.Result[reflect.
 		field := norm.MapIndex(key)
 
 		denormRes := denormalise(valType, field.Elem())
+
 		if denormRes.HasFailed() {
 			return result.Result[reflect.Value]{}.Failed(denormRes.UnwrapError())
 		}
