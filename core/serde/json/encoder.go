@@ -16,12 +16,14 @@ type EncoderState struct {
 	buffer  bytes.Buffer
 }
 
-const ROOT_STATE = 0
-const MAP_STATE = 1
-const MAP_KEY_STATE = 2
-const MAP_VALUE_STATE = 3
-const ARRAY_STATE = 4
-const ARRAY_VALUE_STATE = 5
+const (
+	ENCODER_ROOT_STATE = iota
+	ENCODER_MAP_STATE
+	ENCODER_MAP_KEY_STATE
+	ENCODER_MAP_VALUE_STATE
+	ENCODER_ARRAY_STATE
+	ENCODER_ARRAY_VALUE_STATE
+)
 
 type Encoder struct {
 	states collection.Stack[EncoderState]
@@ -56,7 +58,7 @@ func (enc *Encoder) WriteString(s string) result.Result[bool] {
 }
 
 func (enc *Encoder) PushArray() result.Result[bool] {
-	enc.states.Push(EncoderState{typ: ARRAY_STATE})
+	enc.states.Push(EncoderState{typ: ENCODER_ARRAY_STATE})
 	return enc.WriteString("[")
 }
 
@@ -68,20 +70,20 @@ func (enc *Encoder) PushArrayValue() result.Result[bool] {
 
 	currentState := currentStateRes.Expect()
 
-	if currentState.typ != ARRAY_STATE {
+	if currentState.typ != ENCODER_ARRAY_STATE {
 		return result.Result[bool]{}.Failed(errors.New("expecting the encoder to be in a map state"))
 	}
 
 	if currentState.counter > 0 {
 		enc.WriteString(",")
 	}
-	enc.states.Push(EncoderState{typ: ARRAY_VALUE_STATE})
+	enc.states.Push(EncoderState{typ: ENCODER_ARRAY_VALUE_STATE})
 
 	return result.Success(true)
 }
 
 func (enc *Encoder) PushMap() result.Result[bool] {
-	enc.states.Push(EncoderState{typ: MAP_STATE})
+	enc.states.Push(EncoderState{typ: ENCODER_MAP_STATE})
 	enc.WriteString("{")
 	return result.Success(true)
 }
@@ -95,7 +97,7 @@ func (enc *Encoder) PushMapKey() result.Result[bool] {
 
 	currentState := currentStateRes.Expect()
 
-	if currentState.typ != MAP_STATE {
+	if currentState.typ != ENCODER_MAP_STATE {
 		return result.Result[bool]{}.Failed(errors.New("expecting the encoder to be in a map state"))
 	}
 
@@ -106,12 +108,12 @@ func (enc *Encoder) PushMapKey() result.Result[bool] {
 	}
 
 	currentState.counter++
-	enc.states.Push(EncoderState{typ: MAP_KEY_STATE})
+	enc.states.Push(EncoderState{typ: ENCODER_MAP_KEY_STATE})
 	return result.Success(true)
 }
 
 func (enc *Encoder) PushMapValue() result.Result[bool] {
-	enc.states.Push(EncoderState{typ: MAP_VALUE_STATE})
+	enc.states.Push(EncoderState{typ: ENCODER_MAP_VALUE_STATE})
 	enc.WriteString(":")
 	return result.Success(true)
 }
@@ -124,13 +126,13 @@ func (enc *Encoder) Pop() result.Result[bool] {
 	}
 
 	switch state.Expect().typ {
-	case MAP_STATE:
+	case ENCODER_MAP_STATE:
 		return enc.WriteString("}")
-	case ARRAY_STATE:
+	case ENCODER_ARRAY_STATE:
 		return enc.WriteString("]")
-	case ARRAY_VALUE_STATE:
-	case MAP_VALUE_STATE:
-	case MAP_KEY_STATE:
+	case ENCODER_ARRAY_VALUE_STATE:
+	case ENCODER_MAP_VALUE_STATE:
+	case ENCODER_MAP_KEY_STATE:
 		return result.Success(true)
 	default:
 		return result.Failed[bool](errors.New("invalid encoder state"))

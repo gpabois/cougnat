@@ -26,21 +26,15 @@ func Encode[T any](enc Encoder, value T) {
 
 func encode(enc Encoder, value reflect.Value) {
 	switch value.Type().Kind() {
-	case reflect.Int64:
-	case reflect.Int32:
-	case reflect.Int16:
-	case reflect.Int8:
-	case reflect.Int:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		enc.EncodeInt64(value.Int())
 	case reflect.String:
 		enc.EncodeString(value.String())
-	case reflect.Float64:
-	case reflect.Float32:
+	case reflect.Float32, reflect.Float64:
 		enc.EncodeFloat64(value.Float())
 	case reflect.Bool:
 		enc.EncodeBool(value.Bool())
-	case reflect.Array:
-	case reflect.Slice:
+	case reflect.Array, reflect.Slice:
 		encodeSlice(enc, value)
 	case reflect.Map:
 		encodeMap(enc, value)

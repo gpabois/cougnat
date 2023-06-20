@@ -47,13 +47,31 @@ type Document struct {
 }
 
 type Element struct {
-	Key   string
-	Value Value
+	key   string
+	value Value
+}
+
+func (el Element) Key() string {
+	return el.key
+}
+
+func (el Element) Value() any {
+	return el.value
 }
 
 type Array struct {
 	Elements []Value
 }
+
+const (
+	VALUE_DOCUMENT = iota
+	VALUE_ARRAY
+	VALUE_BOOLEAN
+	VALUE_STRING
+	VALUE_INTEGER
+	VALUE_FLOAT
+	VALUE_NULL
+)
 
 type Value struct {
 	documentValue Document
@@ -68,7 +86,7 @@ type Value struct {
 }
 
 func (val Value) IsDocument() bool {
-	return val.set == 1
+	return val.set == VALUE_DOCUMENT
 }
 
 func (val Value) ExpectDocument() Document {
@@ -82,12 +100,12 @@ func (val Value) ExpectDocument() Document {
 func (val Value) Document(document Document) Value {
 	return Value{
 		documentValue: document,
-		set:           1,
+		set:           VALUE_DOCUMENT,
 	}
 }
 
 func (val Value) IsArray() bool {
-	return val.set == 2
+	return val.set == VALUE_ARRAY
 }
 
 func (val Value) ExpectArray() Array {
@@ -101,26 +119,50 @@ func (val Value) ExpectArray() Array {
 func (val Value) Array(array Array) Value {
 	return Value{
 		arrayValue: array,
-		set:        2,
+		set:        VALUE_ARRAY,
 	}
+}
+
+func (val Value) IsBoolean() bool {
+	return val.set == VALUE_BOOLEAN
+}
+
+func (val Value) ExpectBoolean() bool {
+	if !val.IsBoolean() {
+		panic("not a boolean")
+	}
+
+	return val.boolValue
 }
 
 func (val Value) Bool(bval bool) Value {
 	return Value{
 		boolValue: bval,
-		set:       3,
+		set:       VALUE_BOOLEAN,
 	}
+}
+
+func (val Value) IsString() bool {
+	return val.set == VALUE_STRING
+}
+
+func (val Value) ExpectString() string {
+	if !val.IsString() {
+		panic("not a string")
+	}
+
+	return val.stringValue
 }
 
 func (val Value) String(sval string) Value {
 	return Value{
 		stringValue: sval,
-		set:         3,
+		set:         VALUE_STRING,
 	}
 }
 
 func (val Value) IsInteger() bool {
-	return val.set == 2
+	return val.set == VALUE_INTEGER
 }
 
 func (val Value) ExpectInteger() int {
@@ -134,19 +176,31 @@ func (val Value) ExpectInteger() int {
 func (val Value) Integer(ival int) Value {
 	return Value{
 		integerValue: ival,
-		set:          4,
+		set:          VALUE_INTEGER,
 	}
+}
+
+func (val Value) IsFloat() bool {
+	return val.set == VALUE_INTEGER
+}
+
+func (val Value) ExpectFloat() float64 {
+	if !val.IsFloat() {
+		panic("not a float")
+	}
+
+	return val.floatValue
 }
 
 func (val Value) Float(fval float64) Value {
 	return Value{
 		floatValue: fval,
-		set:        5,
+		set:        VALUE_FLOAT,
 	}
 }
 
 func (val Value) Null() Value {
 	return Value{
-		set: 6,
+		set: VALUE_NULL,
 	}
 }

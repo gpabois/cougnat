@@ -2,152 +2,72 @@ package json
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"reflect"
 
 	"github.com/gpabois/cougnat/core/iter"
-	"github.com/gpabois/cougnat/core/option"
 	"github.com/gpabois/cougnat/core/result"
+	"github.com/gpabois/cougnat/core/serde"
 )
 
-func Decode[T any](r io.Reader) result.Result[T] {
-	var val T
-	parser := NewParser(r)
-	jsonRes := parser.Parse()
-
-	if jsonRes.HasFailed() {
-		return result.Result[T]{}.Failed(jsonRes.UnwrapError())
-	}
-
-	decRes := decode(jsonRes.Expect(), reflect.ValueOf(val).Type())
-
-	if decRes.HasFailed() {
-		return result.Result[T]{}.Failed(decRes.UnwrapError())
-	}
-
-	return result.Success(decRes.Expect().Interface().(T))
+type Decoder struct {
+	parser Parser
 }
 
-func searchElement(node Document, key string) option.Option[Element] {
-	return iter.Find(
-		iter.IterSlice(&node.Pairs),
-		func(el Element) bool { return el.Key == key },
-	)
+func NewDecoder(r io.Reader) *Decoder {
+	return &Decoder{
+		parser: *NewParser(r),
+	}
 }
 
-func decodeStruct(ast any, typ reflect.Type) result.Result[reflect.Value] {
+func (decoder *Decoder) Init() result.Result[any] {
+	return decoder.parser.Parse().ToAny()
+}
+
+func (decoder *Decoder) DecodePrimaryType(data any, typ reflect.Type) result.Result[reflect.Value] {
+	return decodePrimaryTypes(data, typ)
+}
+
+func (decoder *Decoder) IterMap(ast any) result.Result[iter.Iterator[serde.Element]] {
 	switch node := ast.(type) {
 	case Json:
 		if !node.IsDocument() {
-			return result.Result[reflect.Value]{}.Failed(errors.New("not a document"))
+			return result.Result[iter.Iterator[serde.Element]]{}.Failed(errors.New("expecting a map"))
 		}
-		return decodeMap(node.ExpectDocument(), typ)
+		return decoder.IterMap(node.ExpectDocument())
 	case Value:
 		if !node.IsDocument() {
-			return result.Result[reflect.Value]{}.Failed(errors.New("not a document"))
+			return result.Result[iter.Iterator[serde.Element]]{}.Failed(errors.New("expecting an array"))
 		}
-		return decodeMap(node.ExpectDocument(), typ)
+		return decoder.IterMap(node.ExpectArray())
 	case Document:
-		val := reflect.New(typ)
-		for i := 0; i < typ.NumField(); i++ {
-			field := val.Field(i)
-			fieldName := typ.Field(i).Name
-			marshalName, ok := typ.Field(i).Tag.Lookup("serde")
-			if ok {
-				fieldName = marshalName
-			}
-
-			cOpt := searchElement(node, fieldName)
-
-			if cOpt.IsNone() || !field.IsValid() {
-				continue
-			}
-
-			// Decode option
-			if field.CanAddr() && option.IsMutableOption(field.Addr().Interface()) {
-				innerType := field.Interface().(option.IOption).TypeOf()
-				res := decode(cOpt.Expect(), innerType)
-				if res.HasFailed() {
-					return result.Failed[reflect.Value](res.UnwrapError())
-				}
-				resSet := field.Addr().Interface().(option.IMutableOption).TrySet(res.Expect())
-				if resSet.HasFailed() {
-					return result.Failed[reflect.Value](res.UnwrapError())
-				}
-			} else { // Decode normally
-				res := decode(cOpt.Expect(), field.Type())
-				if res.HasFailed() {
-					return result.Failed[reflect.Value](res.UnwrapError())
-				}
-				field.Set(res.Expect())
-			}
-		}
-
-		return result.Success(val.Elem())
+		return result.Success(iter.Map(
+			iter.IterSlice(&node.Pairs),
+			func(pair Element) serde.Element {
+				return pair
+			},
+		))
 	default:
-		return result.Result[reflect.Value]{}.Failed(errors.New("not a document"))
+		return result.Result[iter.Iterator[serde.Element]]{}.Failed(errors.New("not a map"))
 	}
 }
 
-func decodeMap(ast any, typ reflect.Type) result.Result[reflect.Value] {
-	switch node := ast.(type) {
-	case Json:
-		if !node.IsDocument() {
-			return result.Result[reflect.Value]{}.Failed(errors.New("not a document"))
-		}
-		return decodeMap(node.ExpectDocument(), typ)
-	case Value:
-		if !node.IsDocument() {
-			return result.Result[reflect.Value]{}.Failed(errors.New("not a document"))
-		}
-		return decodeMap(node.ExpectDocument(), typ)
-	case Document:
-		val := reflect.New(reflect.MapOf(typ.Key(), typ.Elem()))
-		for _, el := range node.Pairs {
-			valRes := decode(el.Value, typ.Elem())
-			if valRes.HasFailed() {
-				return result.Result[reflect.Value]{}.Failed(valRes.UnwrapError())
-			}
-
-			val.SetMapIndex(reflect.ValueOf(el.Key), valRes.Expect())
-		}
-
-		return result.Success(val.Elem())
-	default:
-		return result.Result[reflect.Value]{}.Failed(errors.New("not a document"))
-	}
-}
-
-func decodeSlice(ast any, typ reflect.Type) result.Result[reflect.Value] {
-	elTyp := typ.Elem()
-
+func (decoder *Decoder) IterSlice(ast any) result.Result[iter.Iterator[any]] {
 	switch node := ast.(type) {
 	case Json:
 		if !node.IsArray() {
-			return result.Result[reflect.Value]{}.Failed(errors.New("expecting an array"))
+			return result.Result[iter.Iterator[any]]{}.Failed(errors.New("expecting an array"))
 		}
-		return decodeSlice(node.ExpectArray(), typ)
+		return decoder.IterSlice(node.ExpectArray())
 	case Value:
 		if !node.IsArray() {
-			return result.Result[reflect.Value]{}.Failed(errors.New("expecting an array"))
+			return result.Result[iter.Iterator[any]]{}.Failed(errors.New("expecting an array"))
 		}
-		return decodeSlice(node.ExpectArray(), typ)
-
+		return decoder.IterSlice(node.ExpectArray())
 	case Array:
-		arr := reflect.New(typ)
-		for _, el := range node.Elements {
-			res := decode(el, elTyp)
-			if res.HasFailed() {
-				return result.Result[reflect.Value]{}.Failed(res.UnwrapError())
-			}
-
-			arr.Elem().Set(reflect.Append(arr.Elem(), res.Expect()))
-		}
-
-		return result.Success(arr.Elem())
+		return result.Success(iter.Map(iter.IterSlice(&node.Elements), func(el Value) any { return any(el) }))
 	default:
-		return result.Result[reflect.Value]{}.Failed(errors.New("expecting an array"))
+		return result.Result[iter.Iterator[any]]{}.Failed(errors.New("not an array"))
 	}
 }
 
@@ -165,23 +85,23 @@ func decodePrimaryTypes(ast any, typ reflect.Type) result.Result[reflect.Value] 
 		}
 
 		return result.Success(reflect.ValueOf(val.ExpectInteger()))
+	case reflect.Float32, reflect.Float64:
+		if !val.IsFloat() {
+			return result.Result[reflect.Value]{}.Failed(errors.New("not a float"))
+		}
+		return result.Success(reflect.ValueOf(val.ExpectFloat()))
+	case reflect.Bool:
+		if !val.IsBoolean() {
+			return result.Result[reflect.Value]{}.Failed(errors.New("not a boolean"))
+		}
+		return result.Success(reflect.ValueOf(val.ExpectBoolean()))
+	case reflect.String:
+		if !val.IsString() {
+			return result.Result[reflect.Value]{}.Failed(errors.New("not a string"))
+		}
+		return result.Success(reflect.ValueOf(val.ExpectString()))
+
 	default:
 		return result.Result[reflect.Value]{}.Failed(errors.New("not a primary type"))
-	}
-}
-
-func decode(ast any, typ reflect.Type) result.Result[reflect.Value] {
-	switch typ.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Bool, reflect.Float32, reflect.Float64, reflect.String:
-		return decodePrimaryTypes(ast, typ)
-	case reflect.Array, reflect.Slice:
-		return decodeSlice(ast, typ)
-	case reflect.Map:
-		return decodeMap(ast, typ)
-	case reflect.Struct:
-		return decodeStruct(ast, typ)
-	default:
-		return result.Result[reflect.Value]{}.Failed(errors.New(fmt.Sprintf("type %v cannot be denormalised", typ.Kind())))
 	}
 }

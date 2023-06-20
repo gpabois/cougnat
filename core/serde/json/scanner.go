@@ -15,24 +15,24 @@ type Token struct {
 }
 
 const (
-	EOF = iota
-	INVALID
-	WS
+	TOK_EOF = iota
+	TOK_INVALID
+	TOK_WS
 
-	LEFT_DOCUMENT
-	RIGHT_DOCUMENT
-	COMMA
-	COLON
+	TOK_OPEN_DOCUMENT
+	TOK_CLOSE_DOCUMENT
+	TOK_COMMA
+	TOK_COLON
 
-	STRING
-	TRUE
-	FALSE
-	NULL
+	TOK_STRING
+	TOK_TRUE
+	TOK_FALSE
+	TOK_NULL
 
-	NUMBER
+	TOK_NUMBER
 
-	LEFT_ARRAY
-	RIGHT_ARRAY
+	TOK_OPEN_ARRAY
+	TOK_CLOSE_ARRAY
 )
 
 const eof = rune(0)
@@ -90,22 +90,22 @@ func (s *Scanner) scanIdent() Token {
 	switch buf.String() {
 	case "true":
 		return Token{
-			typ: TRUE,
+			typ: TOK_TRUE,
 			lit: buf.String(),
 		}
 	case "false":
 		return Token{
-			typ: FALSE,
+			typ: TOK_FALSE,
 			lit: buf.String(),
 		}
 	case "null":
 		return Token{
-			typ: NULL,
+			typ: TOK_NULL,
 			lit: buf.String(),
 		}
 	default:
 		return Token{
-			typ: INVALID,
+			typ: TOK_INVALID,
 			lit: buf.String(),
 		}
 	}
@@ -124,7 +124,7 @@ func (s *Scanner) scanNumber() Token {
 			buf.WriteRune(ch)
 		} else {
 			return Token{
-				typ: INVALID,
+				typ: TOK_INVALID,
 				lit: "",
 			}
 		}
@@ -138,7 +138,7 @@ func (s *Scanner) scanWhiteSpaces() Token {
 		if !isWhiteSpace(ch) {
 			s.rewind()
 			return Token{
-				typ: WS,
+				typ: TOK_WS,
 				lit: buf.String(),
 			}
 		}
@@ -157,7 +157,7 @@ func (s *Scanner) scanString() Token {
 		} else if ch == '"' || ch == eof {
 			s.rewind()
 			return Token{
-				typ: STRING,
+				typ: TOK_STRING,
 				lit: buf.String(),
 			}
 		} else {
@@ -184,22 +184,22 @@ func (s *Scanner) Scan() Token {
 		return s.scanIdent()
 	} else if ch == ':' {
 		return Token{
-			typ: COLON,
+			typ: TOK_COLON,
 			lit: ":",
 		}
 	} else if ch == ',' {
 		return Token{
-			typ: COMMA,
+			typ: TOK_COMMA,
 			lit: ",",
 		}
 	} else if ch == eof {
 		return Token{
-			typ: EOF,
+			typ: TOK_EOF,
 			lit: "",
 		}
 	} else {
 		return Token{
-			typ: INVALID,
+			typ: TOK_INVALID,
 			lit: "",
 		}
 	}
