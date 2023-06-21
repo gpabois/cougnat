@@ -4,25 +4,37 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/gpabois/cougnat/core/result"
 	"github.com/gpabois/cougnat/core/serde"
 )
 
-func EncodeResponse[T any](ctx context.Context, w http.ResponseWriter, response any) error {
+func EncodeResult[T any](w http.ResponseWriter, res result.Result[T], contentType string) {
+
+}
+
+func EncodeSuccess[T any](ctx context.Context, w http.ResponseWriter, response T) error {
 	contentType := "application/json"
-	encodeResult := serde.MarshalStream(
-		w,
-		HttpResult[T]{}.Success(response.(T)),
+	encodeResult := serde.Serialize(
+		HttpResult[T]{}.Success(response),
 		contentType,
 	)
+
+	if encodeResult.IsSuccess() {
+		w.Write(encodeResult.Expect())
+	}
+
 	return encodeResult.UnwrapError()
 }
 
-func EncodeError[T any](_ context.Context, err error, w http.ResponseWriter) {
+func EncodeError[T any](err error, w http.ResponseWriter) {
 	contentType := "application/json"
 	w.Header().Set("Content-Type", contentType)
-	serde.MarshalStream(
-		w,
+	encodeResult := serde.Serialize(
 		HttpResult[T]{}.Failed(err),
 		contentType,
 	)
+
+	if encodeResult.IsSuccess() {
+		w.Write(encodeResult.Expect())
+	}
 }

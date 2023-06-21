@@ -38,8 +38,8 @@ func decodeDeleteReportRequest(ctx context.Context, req *http.Request) (request 
 }
 
 func encodeDeleteReportRequest(ctx context.Context, w http.ResponseWriter, response any) error {
-	contentType := "application/json"
-	encodeResult := serde.MarshalStream(w, response, contentType)
+	contentType := w.Header.Get("Content-Type")
+	httputil.EncodeResult()
 	return encodeResult.UnwrapError()
 }
 
