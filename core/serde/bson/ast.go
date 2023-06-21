@@ -22,6 +22,14 @@ type Element struct {
 	value Value
 }
 
+func (el Element) Key() string {
+	return el.key
+}
+
+func (el Element) Value() any {
+	return any(el.value)
+}
+
 const (
 	VALUE_INVALID = iota
 	VALUE_FLOAT64
@@ -92,6 +100,18 @@ func (v Value) Integer(i int) Value {
 	}
 }
 
+func (v Value) IsTime() bool {
+	return v.set == VALUE_STRING
+}
+
+func (v Value) ExpectTime() time.Time {
+	if !v.IsTime() {
+		panic("not a time")
+	}
+
+	return v.timeValue
+}
+
 func (v Value) Time(t time.Time) Value {
 	return Value{
 		timeValue: t,
@@ -141,6 +161,18 @@ func (v Value) Null() Value {
 	return Value{
 		set: VALUE_NULL,
 	}
+}
+
+func (v Value) IsDocument() bool {
+	return v.set == VALUE_DOCUMENT
+}
+
+func (v Value) ExpectDocument() Document {
+	if !v.IsDocument() {
+		panic("not a document")
+	}
+
+	return v.documentValue
 }
 
 func (v Value) Document(d Document) Value {

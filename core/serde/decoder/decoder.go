@@ -1,9 +1,10 @@
-package serde
+package decoder
 
 import (
 	"errors"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/gpabois/cougnat/core/iter"
 	"github.com/gpabois/cougnat/core/option"
@@ -18,7 +19,9 @@ type Element interface {
 type Decoder interface {
 	// Init the decoder and return data to be decoded along the way
 	Init() result.Result[any]
-	// Decode as a primary type
+	// Decode time
+	DecodeTime(data any, typ reflect.Type) result.Result[reflect.Value]
+	// Decode a primary type
 	DecodePrimaryType(data any, typ reflect.Type) result.Result[reflect.Value]
 	// Iter over encoded slice element
 	IterSlice(data any) result.Result[iter.Iterator[any]]
@@ -153,6 +156,11 @@ func decodeStruct(decoder Decoder, encoded any, typ reflect.Type) result.Result[
 	return result.Success(val.Elem())
 }
 
+// Try to decode time
+func decodeTime(decoder Decoder, encoded any, typ reflect.Type) result.Result[reflect.Value] {
+	return decoder.DecodeTime(encoded, typ)
+}
+
 func decode(decoder Decoder, encoded any, typ reflect.Type) result.Result[reflect.Value] {
 	switch typ.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
@@ -163,6 +171,12 @@ func decode(decoder Decoder, encoded any, typ reflect.Type) result.Result[reflec
 	case reflect.Map:
 		return decodeMap(decoder, encoded, typ)
 	case reflect.Struct:
+		// Decode time
+		var t time.Time
+		if typ == reflect.TypeOf(t) {
+			return decodeTime(decoder, encoded, typ)
+		}
+		// Decode as a regular struct
 		return decodeStruct(decoder, encoded, typ)
 	default:
 		return result.Result[reflect.Value]{}.Failed(errors.New(fmt.Sprintf("type %v cannot be denormalised", typ.Kind())))

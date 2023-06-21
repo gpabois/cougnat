@@ -4,19 +4,22 @@ import (
 	"errors"
 	"io"
 	"reflect"
+	"time"
 
 	"github.com/gpabois/cougnat/core/iter"
 	"github.com/gpabois/cougnat/core/result"
-	"github.com/gpabois/cougnat/core/serde"
+	"github.com/gpabois/cougnat/core/serde/decoder"
 )
 
 type Decoder struct {
-	parser Parser
+	parser     Parser
+	dateLayout string
 }
 
 func NewDecoder(r io.Reader) *Decoder {
 	return &Decoder{
-		parser: *NewParser(r),
+		parser:     *NewParser(r),
+		dateLayout: "YYYY-MM-DDTHH:mm:ss.sssZ", // Default is ISO String
 	}
 }
 
@@ -24,31 +27,54 @@ func (decoder *Decoder) Init() result.Result[any] {
 	return decoder.parser.Parse().ToAny()
 }
 
+func (decoder *Decoder) DecodeTime(data any, typ reflect.Type) result.Result[reflect.Value] {
+	switch val := data.(type) {
+	case Value:
+		if val.IsInteger() {
+			return decoder.DecodeTime(val.ExpectInteger(), typ)
+		} else if val.IsString() {
+			return decoder.DecodeTime(val.ExpectString(), typ)
+		}
+	// Parse integer as a unix epoch in seconds
+	case int:
+		return result.Success(reflect.ValueOf(time.Unix(int64(val), 0)))
+	// Try to parse the date
+	case string:
+		t, err := time.Parse(decoder.dateLayout, val)
+		if err != nil {
+			return result.Result[reflect.Value]{}.Failed(err)
+		}
+		return result.Success(reflect.ValueOf(t))
+	}
+
+	return result.Result[reflect.Value]{}.Failed(errors.New("cannot decode time"))
+}
+
 func (decoder *Decoder) DecodePrimaryType(data any, typ reflect.Type) result.Result[reflect.Value] {
 	return decodePrimaryTypes(data, typ)
 }
 
-func (decoder *Decoder) IterMap(ast any) result.Result[iter.Iterator[serde.Element]] {
+func (dec *Decoder) IterMap(ast any) result.Result[iter.Iterator[decoder.Element]] {
 	switch node := ast.(type) {
 	case Json:
 		if !node.IsDocument() {
-			return result.Result[iter.Iterator[serde.Element]]{}.Failed(errors.New("expecting a map"))
+			return result.Result[iter.Iterator[decoder.Element]]{}.Failed(errors.New("expecting a map"))
 		}
-		return decoder.IterMap(node.ExpectDocument())
+		return dec.IterMap(node.ExpectDocument())
 	case Value:
 		if !node.IsDocument() {
-			return result.Result[iter.Iterator[serde.Element]]{}.Failed(errors.New("expecting an array"))
+			return result.Result[iter.Iterator[decoder.Element]]{}.Failed(errors.New("expecting an array"))
 		}
-		return decoder.IterMap(node.ExpectArray())
+		return dec.IterMap(node.ExpectArray())
 	case Document:
 		return result.Success(iter.Map(
 			iter.IterSlice(&node.Pairs),
-			func(pair Element) serde.Element {
+			func(pair Element) decoder.Element {
 				return pair
 			},
 		))
 	default:
-		return result.Result[iter.Iterator[serde.Element]]{}.Failed(errors.New("not a map"))
+		return result.Result[iter.Iterator[decoder.Element]]{}.Failed(errors.New("not a map"))
 	}
 }
 

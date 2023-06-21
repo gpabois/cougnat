@@ -10,7 +10,7 @@ import (
 	"github.com/gpabois/cougnat/core/result"
 )
 
-type EncoderState struct {
+type encoderState struct {
 	typ     int
 	counter int
 	buffer  bytes.Buffer
@@ -26,8 +26,14 @@ const (
 )
 
 type Encoder struct {
-	states collection.Stack[EncoderState]
+	states collection.Stack[encoderState]
 	writer io.Writer
+}
+
+func NewEncoder(w io.Writer) *Encoder {
+	enc := &Encoder{writer: w}
+	enc.states.Push(encoderState{typ: ENCODER_ROOT_STATE})
+	return enc
 }
 
 func (enc *Encoder) EncodeInt64(value int64) result.Result[bool] {
@@ -58,7 +64,7 @@ func (enc *Encoder) WriteString(s string) result.Result[bool] {
 }
 
 func (enc *Encoder) PushArray() result.Result[bool] {
-	enc.states.Push(EncoderState{typ: ENCODER_ARRAY_STATE})
+	enc.states.Push(encoderState{typ: ENCODER_ARRAY_STATE})
 	return enc.WriteString("[")
 }
 
@@ -77,13 +83,13 @@ func (enc *Encoder) PushArrayValue() result.Result[bool] {
 	if currentState.counter > 0 {
 		enc.WriteString(",")
 	}
-	enc.states.Push(EncoderState{typ: ENCODER_ARRAY_VALUE_STATE})
+	enc.states.Push(encoderState{typ: ENCODER_ARRAY_VALUE_STATE})
 
 	return result.Success(true)
 }
 
 func (enc *Encoder) PushMap() result.Result[bool] {
-	enc.states.Push(EncoderState{typ: ENCODER_MAP_STATE})
+	enc.states.Push(encoderState{typ: ENCODER_MAP_STATE})
 	enc.WriteString("{")
 	return result.Success(true)
 }
@@ -108,12 +114,12 @@ func (enc *Encoder) PushMapKey() result.Result[bool] {
 	}
 
 	currentState.counter++
-	enc.states.Push(EncoderState{typ: ENCODER_MAP_KEY_STATE})
+	enc.states.Push(encoderState{typ: ENCODER_MAP_KEY_STATE})
 	return result.Success(true)
 }
 
 func (enc *Encoder) PushMapValue() result.Result[bool] {
-	enc.states.Push(EncoderState{typ: ENCODER_MAP_VALUE_STATE})
+	enc.states.Push(encoderState{typ: ENCODER_MAP_VALUE_STATE})
 	enc.WriteString(":")
 	return result.Success(true)
 }
