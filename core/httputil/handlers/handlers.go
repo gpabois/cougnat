@@ -1,23 +1,20 @@
-package httputil
+package handlers
 
 import (
 	"context"
 	"net/http"
 
+	"github.com/gpabois/cougnat/core/httputil/middlewares"
 	"github.com/gpabois/cougnat/core/result"
 	"github.com/gpabois/cougnat/core/serde"
 )
 
-type HttpMiddleware interface {
-	Handle(ctx context.Context, r *http.Request) result.Result[bool]
-}
-
 type DirectHandler[Request any, Response any] struct {
 	endpoint    func(ctx context.Context, request Request) result.Result[Response]
-	middlewares []HttpMiddleware
+	middlewares middlewares.Middlewares
 }
 
-func (handler DirectHandler[Request, Response]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h DirectHandler[Request, Response]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Get the content type of the request
 	contentType := r.Header.Get("Content-Type")
 
@@ -26,13 +23,14 @@ func (handler DirectHandler[Request, Response]) ServeHTTP(w http.ResponseWriter,
 
 	// Decode the request
 	reqRes := serde.DeserializeFromReader[Request](r.Body, contentType)
+
 	if reqRes.HasFailed() {
 		EncodeError[Response](reqRes.UnwrapError(), w)
 		return
 	}
 
 	// Pass it down to the endpoint
-	respRes := handler.endpoint(ctx, reqRes.Expect())
+	respRes := h.endpoint(ctx, reqRes.Expect())
 
 	// Encode the result, we use the accept header
 	accept := r.Header.Get("Accept")
