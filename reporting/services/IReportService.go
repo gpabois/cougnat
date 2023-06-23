@@ -3,8 +3,8 @@ package services
 import (
 	"context"
 
-	"github.com/gpabois/cougnat/core/result"
 	"github.com/gpabois/cougnat/reporting/models"
+	"github.com/gpabois/gostd/result"
 )
 
 type CreateReport struct {

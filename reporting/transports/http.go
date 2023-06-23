@@ -11,9 +11,9 @@ import (
 	"github.com/go-kit/kit/transport"
 	http_transport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
-	"github.com/gpabois/cougnat/core/httputil"
 	"github.com/gpabois/cougnat/core/serde"
 	"github.com/gpabois/cougnat/reporting/endpoints"
+	httputil "github.com/gpabois/gostd/http"
 )
 
 func decodeReportRequest(ctx context.Context, req *http.Request) (request any, err error) {
