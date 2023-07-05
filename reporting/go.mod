@@ -7,7 +7,6 @@ replace github.com/gpabois/cougnat/core => ../core
 replace github.com/gpabois/cougnat/auth => ../auth
 
 require (
-	github.com/go-kit/kit v0.12.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gpabois/cougnat/auth v0.0.0-00010101000000-000000000000
 	github.com/gpabois/cougnat/core v0.0.0-00010101000000-000000000000
@@ -24,7 +23,8 @@ require (
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/gopherjs/gopherjs v1.17.2 // indirect
-	github.com/gpabois/gostd v0.0.1 // indirect
+	github.com/gpabois/goservice v0.0.3 // indirect
+	github.com/gpabois/gostd v0.0.12 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
 	github.com/mongodb/mongo-tools-common v4.0.18+incompatible // indirect

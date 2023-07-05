@@ -17,8 +17,15 @@ github.com/gopherjs/gopherjs v1.17.2 h1:fQnZVsXk8uxXIStYb0N4bGk7jeyTalG/wsZjQ25d
 github.com/gopherjs/gopherjs v1.17.2/go.mod h1:pRRIvn/QzFLrKfvEz3qUuEhtE/zLCWfreZ6J5gM2i+k=
 github.com/gorilla/mux v1.8.0 h1:i40aqfkR1h2SlN9hojwV5ZA91wcXFOvkdNIeFDP5koI=
 github.com/gorilla/mux v1.8.0/go.mod h1:DVbg23sWSpFRCP0SfiEN6jmj59UnW/n46BH5rLB71So=
+github.com/gpabois/goservice v0.0.1 h1:4jKpNCp+4pX+shukPPPNQvdVY4fCxh6kEG6JyXNtW0c=
+github.com/gpabois/goservice v0.0.1/go.mod h1:5a9sGrwXk8EB6qYky4ojoPtFjQb4m7UsP9IQNTgMyPI=
+github.com/gpabois/goservice v0.0.2 h1:fsUaRtJvn1DY8SZP1DSzTrnMH9ZV3+VM/rL4NHIwgIg=
+github.com/gpabois/goservice v0.0.2/go.mod h1:5a9sGrwXk8EB6qYky4ojoPtFjQb4m7UsP9IQNTgMyPI=
+github.com/gpabois/goservice v0.0.3 h1:cHPnl9o4prkSekevPQVFdqR1DfdCwvpSoQjT+pH8cOo=
+github.com/gpabois/goservice v0.0.3/go.mod h1:5a9sGrwXk8EB6qYky4ojoPtFjQb4m7UsP9IQNTgMyPI=
 github.com/gpabois/gostd v0.0.1 h1:/2mwHDJSe++14QAoFgIRatwDWRZ+NZ5Jd95ZxG065Vw=
 github.com/gpabois/gostd v0.0.1/go.mod h1:4aYqKK0JlEZOIkaYxsPoAsRiivWoP9gF8WG9zDDQnvM=
+github.com/gpabois/gostd v0.0.12/go.mod h1:4aYqKK0JlEZOIkaYxsPoAsRiivWoP9gF8WG9zDDQnvM=
 github.com/jinzhu/copier v0.3.5 h1:GlvfUwHk62RokgqVNvYsku0TATCF7bAHVwEXoBh3iJg=
 github.com/jinzhu/copier v0.3.5/go.mod h1:DfbEm0FYsaqBcKcFuvmOZb218JkPGtvSHsKg8S8hyyg=
 github.com/jtolds/gls v4.20.0+incompatible h1:xdiiI2gbIgH/gLH7ADydsJ1uDOEzR8yvV7C0MuV77Wo=

@@ -1,4 +1,4 @@
-package repositories
+package reporting_repositories
 
 import "go.uber.org/dig"
 

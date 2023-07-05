@@ -1,4 +1,4 @@
-package services
+package reporting_services
 
 import "go.uber.org/dig"
 

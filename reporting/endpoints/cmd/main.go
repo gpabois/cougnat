@@ -11,6 +11,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/gpabois/cougnat/core/cfg"
 	"github.com/gpabois/cougnat/core/common"
+	reporting_endpoints "github.com/gpabois/cougnat/reporting/endpoints"
 	"github.com/gpabois/cougnat/reporting/repositories"
 	"github.com/gpabois/cougnat/reporting/services"
 	"github.com/gpabois/cougnat/reporting/transports"
@@ -51,6 +52,9 @@ func main() {
 		httpScope.Provide(func(log.Logger) {
 			log.With(logger, "component", "HTTP")
 		})
+
+		// Provide the endpoints.
+		container.Provide(reporting_endpoints.ProvideReportEndpoint)
 
 		// Provide the http handlers.
 		container.Provide(transports.ProvideHttpHandler)

@@ -1,9 +1,9 @@
-package repositories
+package reporting_repositories
 
 import (
-	"github.com/gpabois/cougnat/core/option"
-	result "github.com/gpabois/cougnat/core/result"
-	models "github.com/gpabois/cougnat/reporting/models"
+	"github.com/gpabois/cougnat/reporting/models"
+	"github.com/gpabois/gostd/option"
+	"github.com/gpabois/gostd/result"
 )
 
 //go:generate mockery

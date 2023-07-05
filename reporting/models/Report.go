@@ -1,4 +1,4 @@
-package models
+package reporting_models
 
 import (
 	"time"
