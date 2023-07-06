@@ -4,14 +4,16 @@ import (
 	"time"
 
 	auth "github.com/gpabois/cougnat/auth/models"
-	geo "github.com/gpabois/cougnat/core/geojson"
 	"github.com/gpabois/cougnat/core/option"
+	geo "github.com/gpabois/gostd/geojson"
 	"github.com/jinzhu/copier"
 )
 
-type ReportID = string
+type ReportID = int
+type ReportTypeID = int
 
 type ReportType struct {
+	ID     int    `serde:"id"`
 	Name   string `serde:"name"`
 	Label  string `serde:"label"`
 	Nature string `serde:"nature"`
@@ -25,6 +27,13 @@ type Report struct {
 	Type       ReportType                  `serde:"type"`
 	Rate       int                         `serde:"rate"`
 	ReportedAt time.Time                   `serde:"reported_at"`
+}
+
+type NewReport struct {
+	Owner    option.Option[auth.ActorID] `serde:"owner"`
+	Location geo.Feature                 `serde:"location"`
+	TypeID   ReportTypeID                `serde:"type_id"`
+	Rate     int                         `serde:"rate"`
 }
 
 func (report Report) From(attr any) Report {
