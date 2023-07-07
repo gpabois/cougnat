@@ -1,4 +1,4 @@
-package models
+package auth_models
 
 import "github.com/gpabois/cougnat/core/option"
 

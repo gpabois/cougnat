@@ -1,10 +1,10 @@
-package models
+package auth_models
 
-import "github.com/gpabois/cougnat/core/option"
+import "github.com/gpabois/gostd/option"
 
 type ActorID struct {
-	nature string
-	id     option.Option[string]
+	ID     option.Option[string]
+	Nature string
 }
 
 func ActorID_TryFromAny(val any) option.Option[ActorID] {
@@ -21,37 +21,37 @@ func ActorID_TryFromAny(val any) option.Option[ActorID] {
 }
 
 func (id ActorID) IsBound() bool {
-	return id.id.IsSome()
+	return id.ID.IsSome()
 }
 
 func (id ActorID) IsUser() bool {
-	return id.nature == "user"
+	return id.Nature == "user"
 }
 
 func AnonymousID(id option.Option[string]) ActorID {
 	return ActorID{
-		nature: "anonymous",
-		id:     id,
+		Nature: "anonymous",
+		ID:     id,
 	}
 }
 
 func UserID(id string) ActorID {
 	return ActorID{
-		nature: "user",
-		id:     option.Some(id),
+		Nature: "user",
+		ID:     option.Some(id),
 	}
 }
 
 func GroupID(id string) ActorID {
 	return ActorID{
-		nature: "group",
-		id:     option.Some(id),
+		Nature: "group",
+		ID:     option.Some(id),
 	}
 }
 
 func OrganisationID(id string) ActorID {
 	return ActorID{
-		nature: "service",
-		id:     option.Some(id),
+		Nature: "service",
+		ID:     option.Some(id),
 	}
 }

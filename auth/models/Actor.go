@@ -1,4 +1,4 @@
-package models
+package auth_models
 
 type Actor interface {
 	IsSuper() bool
