@@ -1,17 +1,28 @@
 package reporting_services
 
 import (
-	"context"
-
-	"github.com/gpabois/cougnat/reporting/models"
+	auth_models "github.com/gpabois/cougnat/auth/models"
+	reporting_models "github.com/gpabois/cougnat/reporting/models"
 	"github.com/gpabois/gostd/result"
 )
 
-type CreateReport struct {
+type ReportRequest = reporting_models.NewReport
+type ReportResponse struct {
+	ReportID reporting_models.ReportID `serde:"report_id"`
 }
+type ReportResult = result.Result[ReportResponse]
+
+type DeleteReportRequest struct {
+	Requester auth_models.ActorID       `serde:"requester"`
+	ReportID  reporting_models.ReportID `serde:"report_id"`
+}
+type DeleteReportResponse struct {
+	Result bool `serde:"result"`
+}
+type DeleteReportResult = result.Result[DeleteReportResponse]
 
 //go:generate mockery
 type IReportService interface {
-	Report(ctx context.Context, report models.Report) result.Result[models.Report]
-	DeleteReport(ctx context.Context, reportID models.ReportID) result.Result[models.ReportID]
+	Report(request ReportRequest) ReportResult
+	DeleteReport(request DeleteReportRequest) result.Result[DeleteReportResponse]
 }

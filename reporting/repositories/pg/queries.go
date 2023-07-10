@@ -1,64 +1,31 @@
 package reporting_pg
 
-import (
-	"github.com/doug-martin/goqu/v9"
-	reporting_models "github.com/gpabois/cougnat/reporting/models"
-	"github.com/gpabois/gostd/option"
-	"github.com/gpabois/gostd/result"
-	"github.com/gpabois/gostd/serde"
-)
+// Query to get a report by its ID
+//
+// Selects : report.id, owner is set, report.owner__id, report.__type,
+// report_type.id, report_type.name, report_type.label, report_type.nature,
+// report.location,
+const PG_REPORT_GET_BY_ID_QUERY = `
+SELECT r.id, 
+	CAST(CASE WHEN r.owner__id IS NULL AND r.owner__nature == "" THEN 0 ELSE 1 END AS owner_is_set), r.owner__id, r.owner__type, 
+	rt.id, rt.name, rt.label, rt.nature, ST_AsGeoJSON(r.location) 
+FROM reports AS r 
+LEFT JOIN reports_types AS rt ON rt.id = r.type__id
+WHERE r.id = $1
+`
 
-func GetByIdQuery(ns option.Option[string], reportID reporting_models.ReportID) result.Result[string] {
-	reports := goqu.T(pg.PgFullTableName("reports", ns))
-	reportTypes := goqu.T(pg.PgFullTableName("reports_types", ns))
-	joinKey := goqu.On(reportTypes.Col("id").Eq(reports.Col("type__id")))
+// Insert report sql query
+//
+// Columns : owner__id, owner__nature, type__id, rate, location
+const PG_INSERT_REPORT_QUERY = `
+INSERT INTO reports AS r 
+	(r.owner__id, r.owner__nature, r.type__id, r.rate, r.location)
+VALUES 
+	($1, $2, $3, $4, ST_GeomFromGeoJSON($5))
+RETURNING r.ID
+`
 
-	query, _, err := goqu.From(reports).
-		Join(reportTypes, joinKey).
-		Select(
-			reports.Col("id"),
-			reports.Col("owner__id"),
-			reports.Col("owner__nature"),
-			reportTypes.Col("id"),
-			reportTypes.Col("name"),
-			reportTypes.Col("label"),
-			reportTypes.Col("nature"),
-			reports.Col("rate"),
-			goqu.Func("ST_AsGeoJSON", "reports.location"),
-		).
-		Where(reports.Col("id").Eq(reportID)).
-		ToSQL()
-
-	if err != nil {
-		return result.Result[string]{}.Failed(err)
-	}
-
-	return result.Success(query)
-}
-
-func CreateReportQuery(table string, report reporting_models.NewReport) result.Result[string] {
-	owner := report.Owner.UnwrapOr(func() auth_models.ActorID { return auth_models.AnonymousID(option.Some("anonymous")) })
-	locationRes := serde.Serialize(report.Location.Geometry, "application/json")
-
-	if locationRes.HasFailed() {
-		return result.Result[string]{}.Failed(locationRes.UnwrapError())
-	}
-
-	ds := goqu.Insert(table).
-		Cols("owner__id", "owner__nature", "type__id", "rate", "location").
-		Vals(goqu.Vals{
-			owner.ID,
-			owner.Nature,
-			report.TypeID,
-			report.Rate,
-			goqu.Func("ST_GeomFromGeoJSON", locationRes),
-		}).Returning("id")
-
-	query, _, err := ds.ToSQL()
-
-	if err != nil {
-		return result.Result[string]{}.Failed(err)
-	}
-
-	return result.Success(query)
-}
+const PG_DELETE_BY_ID_REPORT_QUERY = `
+DELETE FROM reports AS r
+WHERE r.id = $1
+`

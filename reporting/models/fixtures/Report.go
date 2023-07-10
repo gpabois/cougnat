@@ -4,14 +4,15 @@ import (
 	"time"
 
 	auth_fixtures "github.com/gpabois/cougnat/auth/models/fixtures"
-	geojson "github.com/gpabois/cougnat/core/geojson"
-	geo_fixtures "github.com/gpabois/cougnat/core/geojson/fixtures"
-	"github.com/gpabois/cougnat/core/option"
 	models "github.com/gpabois/cougnat/reporting/models"
+	geojson "github.com/gpabois/gostd/geojson"
+	geo_fixtures "github.com/gpabois/gostd/geojson/fixtures"
+	"github.com/gpabois/gostd/option"
 )
 
 func RandomReportType() models.ReportType {
 	return models.ReportType{
+		ID:     10,
 		Name:   "random_name",
 		Label:  "Random name",
 		Nature: "smell",

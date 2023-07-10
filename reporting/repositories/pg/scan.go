@@ -9,19 +9,19 @@ import (
 // Scan the row to return a ReportType
 // Expected order: ID, Name, Label, Nature
 func ScanReportType(reportType *reporting_models.ReportType) pg.ScanCommands {
-	return pg.ScanPrimaryType(&reportType.ID).
-		Append(pg.ScanPrimaryType(&reportType.Name)).
-		Append(pg.ScanPrimaryType(&reportType.Label)).
-		Append(pg.ScanPrimaryType(&reportType.Nature))
+	return pg.Scan(&reportType.ID).
+		Append(pg.Scan(&reportType.Name)).
+		Append(pg.Scan(&reportType.Label)).
+		Append(pg.Scan(&reportType.Nature))
 }
 
 // Scan the row to return a Report
 // Expected order: ID, ActorID, ReportType, Rate, Location
 func ScanReport(report *reporting_models.Report) pg.ScanCommands {
-	return pg.ScanPrimaryType(&report.ID).
-		Append(auth_pg.ScanActorID(&report.Owner)).
+	return pg.Scan(&report.ID).
+		Append(auth_pg.ScanOptionalActorID(&report.Owner)).
 		Append(ScanReportType(&report.Type)).
-		Append(pg.ScanPrimaryType(&report.Rate)).
-		Append(pg.ScanGeoJsonFeature(&report.Location))
+		Append(pg.Scan(&report.Rate)).
+		Append(pg.Scan(&report.Location))
 
 }

@@ -1,99 +1,111 @@
 package reporting_services
 
 import (
-	"context"
-	"errors"
-
-	"github.com/gpabois/cougnat/auth/guards"
-	auth_models "github.com/gpabois/cougnat/auth/models"
 	auth_svcs "github.com/gpabois/cougnat/auth/services"
-	auth_utils "github.com/gpabois/cougnat/auth/utils"
-	"github.com/gpabois/cougnat/core/option"
-	"github.com/gpabois/cougnat/core/result"
-	ev "github.com/gpabois/cougnat/reporting/events"
-	"github.com/gpabois/cougnat/reporting/models"
+	"github.com/gpabois/cougnat/core/events"
+	"github.com/gpabois/cougnat/core/transaction"
+	reporting_events "github.com/gpabois/cougnat/reporting/events"
+	reporting_models "github.com/gpabois/cougnat/reporting/models"
 	repos "github.com/gpabois/cougnat/reporting/repositories"
+	authz "github.com/gpabois/goservice/authz"
+	authz_services "github.com/gpabois/goservice/authz/services"
+	"github.com/gpabois/gostd/option"
+	"github.com/gpabois/gostd/result"
 )
 
 // Implementation
 type ReportService struct {
 	repo   repos.IReportRepository
 	authz  auth_svcs.IAuthorizationService
-	events ev.IReportEventEmitter
+	events events.IEventService
 }
 
 // Report any annoyances.
-func (svc *ReportService) Report(ctx context.Context, report models.Report) result.Result[models.Report] {
-	ownerID := auth_utils.GetCurrentActorID(ctx)
-	report.Owner = ownerID
+func (svc *ReportService) Report(report ReportRequest) ReportResult {
+	return transaction.Begin(func(tx transaction.Transaction) ReportResult {
+		res := transaction.With(svc.repo.Begin(option.Some(tx)),
+			func(tx repos.IReportRepositoryTx) result.Result[reporting_models.ReportID] {
+				return tx.Create(report)
+			},
+		)
 
-	return result.Into[models.Report](svc.repo.
-		// Create the report
-		Create(report).ToAny().
-		// Retrieve the new report from the repository
-		Chain(result.ChainFromAny(func(reportID string) result.Result[option.Option[models.Report]] {
-			return svc.repo.GetById(reportID)
-		})).
-		// Unwrap the option to get the report
-		Chain(result.ChainFromAny(func(opt option.Option[models.Report]) result.Result[models.Report] {
-			return opt.IntoResult(errors.New("not found"))
-		})).
-		// Send an event, and create access controls for the owner
-		Then(result.ThenFromAny(func(report models.Report) {
-			// Send an event
-			svc.events.OnNewReport(report)
+		if res.HasFailed() {
+			return result.Failed[ReportResponse](res.UnwrapError())
+		}
 
-			// Assert object id
-			report.ObjectID().Expect()
+		reportID := res.Expect()
 
-			// Create an ACL for the Owner, if any
-			if report.Owner.IsSome() {
-				svc.authz.CreateAndAddRoleTo(
-					ownerID.Expect(),
-					"owner",
-					report.ObjectID(),
-					[]string{"read", "write"},
-				)
+		// Register ACL
+		if report.Owner.IsSome() && report.Owner.Expect().IsBound() {
+			reporter := report.Owner.Expect()
+			objectID := reporting_models.ReportObjectID(reportID)
+			res := svc.authz.CreateAndAddRoleTo(reporter, "owner", objectID, []string{"read", "write"})
+			if res.HasFailed() {
+				return result.Failed[ReportResponse](res.UnwrapError())
 			}
-		})))
+		}
+
+		reportRes := transaction.With(svc.repo.Begin(option.Some(tx)),
+			func(tx repos.IReportRepositoryTx) result.Result[option.Option[reporting_models.Report]] {
+				return tx.GetById(reportID)
+			},
+		)
+
+		report := reportRes.Expect().Expect()
+
+		// Notify events
+		notifyRes := reporting_events.NotifyNewReport(svc.events, report)
+		if notifyRes.HasFailed() {
+			return result.Failed[ReportResponse](notifyRes.UnwrapError())
+		}
+
+		// Return result
+		return result.Success(ReportResponse{ReportID: reportID})
+	})
 }
 
-// Delete a report, if the actor has the right to do so.
-func (svc *ReportService) DeleteReport(ctx context.Context, reportID models.ReportID) result.Result[models.ReportID] {
-	// Check if the requester is authenticated
-	currentActorIDRes := guards.IsAuthenticated(ctx)
-	if currentActorIDRes.HasFailed() {
-		return result.Result[string]{}.Failed(currentActorIDRes.UnwrapError())
-	}
-	currentActorID := currentActorIDRes.Expect()
-	objectID := models.ReportObjectID(reportID)
+func (svc *ReportService) DeleteReport(request DeleteReportRequest) DeleteReportResult {
+	objectID := reporting_models.ReportObjectID(request.ReportID)
+	canRes := svc.authz.HasPermission(request.Requester, "write", option.Some(objectID))
 
-	// Check if the requester has the permission to do so
-	acl := auth_models.NewAccessControl(currentActorID, "write", option.Some(objectID))
-	aclRes := guards.CheckAccessControl(svc.authz)(acl)
-	if aclRes.HasFailed() {
-		return result.Result[string]{}.Failed(aclRes.UnwrapError())
+	if canRes.HasFailed() {
+		return result.Result[DeleteReportResponse]{}.Failed(canRes.UnwrapError())
 	}
 
-	// Delete the report
-	deleteRes := svc.repo.Delete(reportID)
-	if deleteRes.HasFailed() {
-		return result.Result[string]{}.Failed(deleteRes.UnwrapError())
+	can := canRes.Expect()
+	if !can {
+		return result.Result[DeleteReportResponse]{}.Failed(
+			authz.NewNotAuthorizedError(authz_services.ACL{
+				Subject:    request.Requester,
+				Permission: "write",
+				Object:     option.Some[any](objectID),
+			}),
+		)
 	}
-	// Clean the ACL
-	svc.authz.RemoveByObjectID(objectID)
 
-	// Send an event
-	svc.events.OnDeletedReport(reportID)
+	return transaction.Begin(func(tx transaction.Transaction) DeleteReportResult {
+		res := result.Map(transaction.With(svc.repo.Begin(option.Some(tx)),
+			func(tx repos.IReportRepositoryTx) result.Result[bool] {
+				return tx.Delete(request.ReportID)
+			},
+		), func(result bool) DeleteReportResponse {
+			return DeleteReportResponse{Result: true}
+		})
 
-	// Return successful
-	return result.Success(reportID)
+		if res.HasFailed() {
+			return result.Result[DeleteReportResponse]{}.Failed(res.UnwrapError())
+		}
+
+		// Notify events
+		notifyRes := reporting_events.NotifyDeletedReport(svc.events, request.ReportID)
+		if notifyRes.HasFailed() {
+			return result.Failed[DeleteReportResponse](notifyRes.UnwrapError())
+		}
+
+		return res
+	})
 }
 
-func ProvideReportService(repo repos.IReportRepository, authz auth_svcs.IAuthorizationService, events ev.IReportEventEmitter) IReportService {
-	return &ReportService{
-		repo,
-		authz,
-		events,
-	}
+func ProvideReportService(repo repos.IReportRepository, authz auth_svcs.IAuthorizationService, events events.IEventService) IReportService {
+	return &ReportService{repo, authz, events}
 }

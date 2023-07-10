@@ -8,16 +8,17 @@ import (
 	auth_svcs "github.com/gpabois/cougnat/auth/services"
 	auth_mocks "github.com/gpabois/cougnat/auth/services/mocks"
 	auth_utils "github.com/gpabois/cougnat/auth/utils"
-	"github.com/gpabois/cougnat/core/option"
-	"github.com/gpabois/cougnat/core/rand"
-	"github.com/gpabois/cougnat/core/result"
-	ev "github.com/gpabois/cougnat/reporting/events"
+	"github.com/gpabois/cougnat/core/events"
+	"github.com/gpabois/cougnat/monitoring/services"
 	events_mocks "github.com/gpabois/cougnat/reporting/events/mocks"
-	"github.com/gpabois/cougnat/reporting/models"
+	reporting_models "github.com/gpabois/cougnat/reporting/models"
 	fixtures "github.com/gpabois/cougnat/reporting/models/fixtures"
 	repos "github.com/gpabois/cougnat/reporting/repositories"
 	repo_mocks "github.com/gpabois/cougnat/reporting/repositories/mocks"
-	"github.com/gpabois/cougnat/reporting/services"
+	reporting_services "github.com/gpabois/cougnat/reporting/services"
+	"github.com/gpabois/gostd/option"
+	"github.com/gpabois/gostd/rand"
+	"github.com/gpabois/gostd/result"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/dig"
 )
@@ -38,7 +39,7 @@ func generateMockedReportServiceDependencies(t *testing.T, container *dig.Contai
 	container.Provide(func() repos.IReportRepository {
 		return reportRepo
 	})
-	container.Provide(func() ev.IReportEventEmitter {
+	container.Provide(func() events.IEventService {
 		return reportEventEmitter
 	})
 	container.Provide(func() auth_svcs.IAuthorizationService {
@@ -64,26 +65,23 @@ func setupReportServiceTest(t *testing.T) *dig.Container {
 // Test a successful use of Report Function of the Report Service
 // The function must :
 // 1 - Store the report, calls IReportRepository.Create
-// 2 - Create an owner role with [read, write] permissions, and add the role to the requester (bind to CurrentActorID)
-// 3 - Emits a NewReport event by calling the IReportEmitter.OnNewReport function
+// 2 - Create an owner role with [read, write] permissions, and add the role to the owner
+// 3 - Emits a ReportCreated event
 func Test_ReportService_Report_Success(t *testing.T) {
 	// Setup the test
 	container := setupReportServiceTest(t)
 
 	// Run the test
-	err := container.Invoke(func(svc services.IReportService, deps mockedReportDependencies) {
+	err := container.Invoke(func(svc reporting_services.IReportService, deps mockedReportDependencies) {
 		// Create fixtures
 		report := fixtures.RandomAnonymousReport()
-		reportID, _ := rand.RandomHex(20)
+		reportID := 120
 		ownerID := auth_fixtures.RandomAnonymousID()
 
 		// Expected report
 		expectedReport := report
 		expectedReport.Owner = option.Some(ownerID)
 		expectedReport.ID = option.Some(reportID)
-
-		// Set the requester
-		ctx := auth_utils.SetCurrentActorID(context.Background(), ownerID)
 
 		// Mock deps
 		deps.reportEventEmitter.EXPECT().OnNewReport(expectedReport).Return(result.Success(true))
@@ -95,10 +93,18 @@ func Test_ReportService_Report_Success(t *testing.T) {
 				),
 			),
 		)
-		deps.authz.EXPECT().CreateAndAddRoleTo(ownerID, "owner", option.Some(models.ReportObjectID(reportID)), []string{"read", "write"}).Return(result.Success(true))
+		deps.authz.EXPECT().CreateAndAddRoleTo(
+			ownerID,
+			"owner",
+			option.Some(reporting_models.ReportObjectID(reportID)), []string{"read", "write"}).Return(result.Success(true))
 
-		// Report
-		res := svc.Report(ctx, report)
+		// services
+		res := svc.Report(reporting_services.ReportRequest{
+			Owner:    option.Some(ownerID),
+			TypeID:   expectedReport.Type.ID,
+			Location: expectedReport.Location,
+			Rate:     expectedReport.Rate,
+		})
 
 		// Should have successfuly created the report
 		assert.True(t, res.IsSuccess(), res.UnwrapError())
@@ -109,7 +115,7 @@ func Test_ReportService_Report_Success(t *testing.T) {
 		deps.authz.AssertCalled(t, "CreateAndAddRoleTo",
 			ownerID,
 			"owner",
-			option.Some(models.ReportObjectID(reportID)),
+			option.Some(reporting_models.ReportObjectID(reportID)),
 			[]string{"read", "write"},
 		)
 

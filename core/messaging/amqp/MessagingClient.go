@@ -5,7 +5,7 @@ import (
 	"time"
 
 	msg "github.com/gpabois/cougnat/core/messaging"
-	"github.com/gpabois/cougnat/core/result"
+	"github.com/gpabois/gostd/result"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 

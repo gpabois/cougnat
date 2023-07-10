@@ -1,6 +1,6 @@
 package messaging
 
-import "github.com/gpabois/cougnat/core/result"
+import "github.com/gpabois/gostd/result"
 
 type Message struct {
 	ContentType string

@@ -1,11 +1,12 @@
 package reporting_models
 
 import (
+	"fmt"
 	"time"
 
 	auth "github.com/gpabois/cougnat/auth/models"
-	"github.com/gpabois/cougnat/core/option"
 	geo "github.com/gpabois/gostd/geojson"
+	"github.com/gpabois/gostd/option"
 	"github.com/jinzhu/copier"
 )
 
@@ -23,7 +24,7 @@ type ReportType struct {
 type Report struct {
 	ID         option.Option[ReportID]     `serde:"id"`
 	Owner      option.Option[auth.ActorID] `serde:"owner"`
-	Location   geo.Feature                 `serde:"location"`
+	Location   geo.Geometry                `serde:"location"`
 	Type       ReportType                  `serde:"type"`
 	Rate       int                         `serde:"rate"`
 	ReportedAt time.Time                   `serde:"reported_at"`
@@ -31,7 +32,7 @@ type Report struct {
 
 type NewReport struct {
 	Owner    option.Option[auth.ActorID] `serde:"owner"`
-	Location geo.Feature                 `serde:"location"`
+	Location geo.Geometry                `serde:"location"`
 	TypeID   ReportTypeID                `serde:"type_id"`
 	Rate     int                         `serde:"rate"`
 }
@@ -48,5 +49,5 @@ func (report Report) ObjectID() option.Option[auth.ObjectID] {
 
 // Transform the ReportID into an ObjectID
 func ReportObjectID(reportID ReportID) auth.ObjectID {
-	return auth.NewObjectID("report", reportID)
+	return auth.NewObjectID("report", fmt.Sprintf("%d", reportID))
 }
